@@ -6,9 +6,12 @@ TESTDIR=tests
 
 TARGETDIRS=$(SRCDIR)/ $(TESTDIR)/
 
-PROTOC=poetry run python -m grpc_tools.protoc
+PROTOC=protoc
 
-# Proto compiling here.
+compile-smc:
+	$(PROTOC) --proto_path=./protos --python_out=$(SRCDIR) --pyi_out=$(SRCDIR) protos/smc.proto
+
+compile-protobuf: compile-smc
 
 autoflake:
 	poetry run autoflake -r --in-place --remove-unused-variables --remove-all-unused-imports $(TARGETDIRS)

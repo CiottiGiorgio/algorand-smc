@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+message setupProposal {
+  uint64 nonce = 1;
+  uint64 minRefundBlock = 2;
+  uint64 ManRefundBlock = 3;
+}
+
+message signature {
+  bytes sig = 1;
+}
+
+message fundingTxID {
+  string txid = 1;
+}
