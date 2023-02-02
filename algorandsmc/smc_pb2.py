@@ -13,7 +13,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\tsmc.proto\"N\n\rsetupProposal\x12\r\n\x05nonce\x18\x01 \x01(\x04\x12\x16\n\x0eminRefundBlock\x18\x02 \x01(\x04\x12\x16\n\x0eManRefundBlock\x18\x03 \x01(\x04\"\x18\n\tsignature\x12\x0b\n\x03sig\x18\x01 \x01(\x0c\"\x1b\n\x0b\x66undingTxID\x12\x0c\n\x04txid\x18\x01 \x01(\tb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\tsmc.proto\"N\n\rsetupProposal\x12\r\n\x05nonce\x18\x01 \x01(\x04\x12\x16\n\x0eminRefundBlock\x18\x02 \x01(\x04\x12\x16\n\x0emaxRefundBlock\x18\x03 \x01(\x04\"\x18\n\tsignature\x12\x0b\n\x03sig\x18\x01 \x01(\x0c\"\x1b\n\x0b\x66undingTxID\x12\x0c\n\x04txid\x18\x01 \x01(\tb\x06proto3')
 
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, globals())
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'smc_pb2', globals())

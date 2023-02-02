@@ -11,14 +11,14 @@ class fundingTxID(_message.Message):
     def __init__(self, txid: _Optional[str] = ...) -> None: ...
 
 class setupProposal(_message.Message):
-    __slots__ = ["ManRefundBlock", "minRefundBlock", "nonce"]
-    MANREFUNDBLOCK_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ["maxRefundBlock", "minRefundBlock", "nonce"]
+    MAXREFUNDBLOCK_FIELD_NUMBER: _ClassVar[int]
     MINREFUNDBLOCK_FIELD_NUMBER: _ClassVar[int]
-    ManRefundBlock: int
     NONCE_FIELD_NUMBER: _ClassVar[int]
+    maxRefundBlock: int
     minRefundBlock: int
     nonce: int
-    def __init__(self, nonce: _Optional[int] = ..., minRefundBlock: _Optional[int] = ..., ManRefundBlock: _Optional[int] = ...) -> None: ...
+    def __init__(self, nonce: _Optional[int] = ..., minRefundBlock: _Optional[int] = ..., maxRefundBlock: _Optional[int] = ...) -> None: ...
 
 class signature(_message.Message):
     __slots__ = ["sig"]
