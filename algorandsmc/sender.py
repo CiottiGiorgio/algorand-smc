@@ -41,6 +41,7 @@ async def sender(websocket):
     )
 
     setup_response = setupResponse.FromString(await websocket.recv())
+    # Protobuf doesn't know what constitutes a valid Algorand address.
     if not is_valid_address(setup_response.recipient):
         raise ValueError
 
