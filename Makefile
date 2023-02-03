@@ -17,7 +17,7 @@ autoflake:
 	poetry run autoflake -r --in-place --remove-unused-variables --remove-all-unused-imports $(TARGETDIRS)
 
 black:
-	poetry run black $(TARGETDIRS)
+	poetry run black $(TARGETDIRS) --exclude '.*_pb2\.pyi?'
 
 isort:
 	poetry run isort $(TARGETDIRS)
@@ -27,7 +27,7 @@ mypy:
 
 # line-too-long is disabled because black already takes care of that.
 pylint:
-	poetry run pylint --disable=fixme --disable=too-few-public-methods --disable=line-too-long $(TARGETDIRS)
+	poetry run pylint --disable=fixme --disable=too-few-public-methods --disable=line-too-long --ignore-patterns '.*_pb2\.pyi?' $(TARGETDIRS)
 
 consistent-format: autoflake black isort
 
