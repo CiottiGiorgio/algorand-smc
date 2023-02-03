@@ -6,10 +6,10 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class PaymentTx(_message.Message):
-    __slots__ = ["tx"]
-    TX_FIELD_NUMBER: _ClassVar[int]
-    tx: bytes
-    def __init__(self, tx: _Optional[bytes] = ...) -> None: ...
+    __slots__ = ["txSignature"]
+    TXSIGNATURE_FIELD_NUMBER: _ClassVar[int]
+    txSignature: bytes
+    def __init__(self, txSignature: _Optional[bytes] = ...) -> None: ...
 
 class SMCMethod(_message.Message):
     __slots__ = ["method"]

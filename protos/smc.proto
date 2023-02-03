@@ -25,5 +25,5 @@ message fundingTxID {
 }
 
 message PaymentTx {
-  bytes tx = 1;
+  bytes txSignature = 1;
 }
