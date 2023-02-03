@@ -11,7 +11,7 @@ from algosdk.mnemonic import to_private_key
 from algorandsmc.sigtemplates import smc_lsig, smc_msig
 
 # pylint: disable-next=no-name-in-module
-from algorandsmc.smc_pb2 import SMCMethod, setupProposal, setupResponse
+from algorandsmc.smc_pb2 import SMCMethod, setupProposal, setupResponse, fundingTxID
 
 RECIPIENT_PRIVATE_KEY_MNEMONIC = (
     "question middle cube wire breeze choose rival accident disorder wood "
@@ -63,8 +63,10 @@ async def setup_channel(websocket):
             lsigSignature=proposed_lsig.lsig.msig.subsigs[1].signature,
         ).SerializeToString()
     )
-
     # At this point, the recipient does not own a correctly signed lsig because it's missing sender's signature.
+
+    # funding_txid: fundingTxID = fundingTxID.FromString(await websocket.recv())
+    # TODO: Check that the funding happened in order to start accepting SMC payments.
 
 
 async def receive_payment(websocket):

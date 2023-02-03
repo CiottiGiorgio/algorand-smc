@@ -57,8 +57,12 @@ async def sender(websocket):
     # Merging signatures for the lsig
     accepted_lsig.sign_multisig(accepted_msig, SENDER_PRIVATE_KEY)
     accepted_lsig.lsig.msig.subsigs[1].signature = setup_response.lsigSignature
+    if not accepted_lsig.verify():
+        raise ValueError
 
     print(f"{accepted_lsig.verify() = }")
+
+    # TODO: Sender should at this point fund the msig and send the TxID to recipient.
 
 
 async def main():
