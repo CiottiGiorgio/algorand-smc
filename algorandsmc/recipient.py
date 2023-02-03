@@ -8,10 +8,9 @@ from algosdk.account import address_from_private_key
 from algosdk.encoding import is_valid_address
 from algosdk.mnemonic import to_private_key
 
-from algorandsmc.templates import smc_lsig, smc_msig
-
 # pylint: disable-next=no-name-in-module
-from algorandsmc.smc_pb2 import SMCMethod, setupProposal, setupResponse, fundingTxID
+from algorandsmc.smc_pb2 import SMCMethod, setupProposal, setupResponse
+from algorandsmc.templates import smc_lsig, smc_msig
 
 RECIPIENT_PRIVATE_KEY_MNEMONIC = (
     "question middle cube wire breeze choose rival accident disorder wood "

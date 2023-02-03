@@ -23,7 +23,7 @@ isort:
 	poetry run isort $(TARGETDIRS)
 
 mypy:
-	poetry run mypy $(TARGETDIRS)
+	poetry run mypy $(TARGETDIRS) --exclude '.*_pb2\.pyi?' --check-untyped-defs
 
 # line-too-long is disabled because black already takes care of that.
 pylint:
