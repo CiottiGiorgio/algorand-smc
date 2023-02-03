@@ -1,3 +1,6 @@
+import base64
+
+from algosdk.transaction import LogicSigAccount
 from algosdk.v2client.algod import AlgodClient
 from pyteal import compileTeal, Mode, Int, Pop, Assert, Seq, Txn, TxnType, Bytes, Global, Approve
 
@@ -6,7 +9,7 @@ def smc_lsig(
         sender,
         min_block_refund,
         max_block_refund
-):
+) -> LogicSigAccount:
     # Sandbox node
     node_client = AlgodClient("a" * 64, "http://localhost:4001")
 
@@ -25,4 +28,4 @@ def smc_lsig(
 
     lsig_teal = compileTeal(lsig_pyteal, Mode.Signature, version=2)
 
-    return node_client.compile(lsig_teal)["result"]
+    return LogicSigAccount(base64.b64decode(node_client.compile(lsig_teal)["result"]))

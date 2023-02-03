@@ -2,7 +2,7 @@ from algosdk.transaction import Multisig
 from algosdk.v2client.algod import AlgodClient
 
 
-def smc_msig(sender_addr, recipient_addr, nonce, min_block_refund, max_block_refund) -> str:
+def smc_msig(sender_addr, recipient_addr, nonce, min_block_refund, max_block_refund) -> Multisig:
     """
     Returns all necessary info about a Simple Micropayment Channel given setup parameters.
     (A)lice is the sender and (B)ob the recipient. (C)ontract is the fictitious smart signature account that always
@@ -29,4 +29,4 @@ def smc_msig(sender_addr, recipient_addr, nonce, min_block_refund, max_block_ref
     ])
     contract_addr = node_client.compile(teal)["hash"]
 
-    return Multisig(1, 2, [sender_addr, recipient_addr, contract_addr]).address()
+    return Multisig(1, 2, [sender_addr, recipient_addr, contract_addr])
