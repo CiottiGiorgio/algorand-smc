@@ -2,11 +2,12 @@ import asyncio
 
 import websockets
 
-from algorandsmc.smc_pb2 import setupProposal
+from algorandsmc.smc_pb2 import SMCMethod, setupProposal
 
 
 async def sender(websocket):
-    await websocket.send(setupProposal(nonce=1, minRefundBlock=1_000, maxRefundBlock=1_500).SerializeToString())
+    await websocket.send(SMCMethod(method=SMCMethod.MethodEnum.SETUP_CHANNEL).SerializeToString())
+    await websocket.send(setupProposal(nonce=1024, minRefundBlock=10_000, maxRefundBlock=11_000).SerializeToString())
 
 
 async def main():
