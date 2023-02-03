@@ -5,6 +5,12 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class PaymentTx(_message.Message):
+    __slots__ = ["tx"]
+    TX_FIELD_NUMBER: _ClassVar[int]
+    tx: bytes
+    def __init__(self, tx: _Optional[bytes] = ...) -> None: ...
+
 class SMCMethod(_message.Message):
     __slots__ = ["method"]
     class MethodEnum(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -22,17 +28,21 @@ class fundingTxID(_message.Message):
     def __init__(self, txid: _Optional[str] = ...) -> None: ...
 
 class setupProposal(_message.Message):
-    __slots__ = ["maxRefundBlock", "minRefundBlock", "nonce"]
+    __slots__ = ["maxRefundBlock", "minRefundBlock", "nonce", "sender"]
     MAXREFUNDBLOCK_FIELD_NUMBER: _ClassVar[int]
     MINREFUNDBLOCK_FIELD_NUMBER: _ClassVar[int]
     NONCE_FIELD_NUMBER: _ClassVar[int]
+    SENDER_FIELD_NUMBER: _ClassVar[int]
     maxRefundBlock: int
     minRefundBlock: int
     nonce: int
-    def __init__(self, nonce: _Optional[int] = ..., minRefundBlock: _Optional[int] = ..., maxRefundBlock: _Optional[int] = ...) -> None: ...
+    sender: str
+    def __init__(self, sender: _Optional[str] = ..., nonce: _Optional[int] = ..., minRefundBlock: _Optional[int] = ..., maxRefundBlock: _Optional[int] = ...) -> None: ...
 
-class signature(_message.Message):
-    __slots__ = ["sig"]
-    SIG_FIELD_NUMBER: _ClassVar[int]
-    sig: bytes
-    def __init__(self, sig: _Optional[bytes] = ...) -> None: ...
+class setupResponse(_message.Message):
+    __slots__ = ["lsigSignature", "recipient"]
+    LSIGSIGNATURE_FIELD_NUMBER: _ClassVar[int]
+    RECIPIENT_FIELD_NUMBER: _ClassVar[int]
+    lsigSignature: bytes
+    recipient: str
+    def __init__(self, recipient: _Optional[str] = ..., lsigSignature: _Optional[bytes] = ...) -> None: ...

@@ -9,15 +9,21 @@ message SMCMethod {
 }
 
 message setupProposal {
-  uint64 nonce = 1;
-  uint64 minRefundBlock = 2;
-  uint64 maxRefundBlock = 3;
+  string sender = 1;
+  uint64 nonce = 2;
+  uint64 minRefundBlock = 3;
+  uint64 maxRefundBlock = 4;
 }
 
-message signature {
-  bytes sig = 1;
+message setupResponse {
+  string recipient = 1;
+  bytes lsigSignature = 2;
 }
 
 message fundingTxID {
   string txid = 1;
+}
+
+message PaymentTx {
+  bytes tx = 1;
 }
