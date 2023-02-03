@@ -51,6 +51,7 @@ async def sender(websocket):
     accepted_msig = smc_msig(
         SENDER_ADDR, setup_response.recipient, NONCE, MIN_REFUND_BLOCK, MAX_REFUND_BLOCK
     )
+    print(f"{accepted_msig.address() = }")
     # Compiling lsig template on the sender side.
     accepted_lsig = smc_lsig(SENDER_ADDR, MIN_REFUND_BLOCK, MAX_REFUND_BLOCK)
 

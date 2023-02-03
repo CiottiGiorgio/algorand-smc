@@ -38,6 +38,7 @@ async def setup_channel(websocket):
         setup_proposal.minRefundBlock,
         setup_proposal.maxRefundBlock,
     )
+    print(f"{proposed_msig.address() = }")
     # TODO: Se proposed_msig esiste già nella memoria del recipient, non può essere riutilizzato per un nuovo setup.
     # Compiling lsig template on the recipient side.
     proposed_lsig = smc_lsig(
