@@ -8,6 +8,8 @@ from algosdk.account import address_from_private_key
 from algosdk.encoding import is_valid_address
 from algosdk.mnemonic import to_private_key
 
+from algorandsmc.sigtemplates import smc_lsig, smc_msig
+
 # pylint: disable-next=no-name-in-module
 from algorandsmc.smc_pb2 import SMCMethod, setupProposal, setupResponse
 
@@ -20,13 +22,21 @@ SENDER_PRIVATE_KEY = to_private_key(SENDER_PRIVATE_KEY_MNEMONIC)
 SENDER_ADDR = address_from_private_key(SENDER_PRIVATE_KEY)
 
 
+NONCE = 1024
+MIN_REFUND_BLOCK = 10_000
+MAX_REFUND_BLOCK = 11_000
+
+
 async def sender(websocket):
     await websocket.send(
         SMCMethod(method=SMCMethod.MethodEnum.SETUP_CHANNEL).SerializeToString()
     )
     await websocket.send(
         setupProposal(
-            sender=SENDER_ADDR, nonce=1024, minRefundBlock=10_000, maxRefundBlock=11_000
+            sender=SENDER_ADDR,
+            nonce=NONCE,
+            minRefundBlock=MIN_REFUND_BLOCK,
+            maxRefundBlock=MAX_REFUND_BLOCK,
         ).SerializeToString()
     )
 
@@ -35,8 +45,19 @@ async def sender(websocket):
         raise ValueError
 
     print(setup_response)
-    # TODO: Sender could dryrun the lsig + sender signature + recipient signature to
-    #  verify that they will be able in the future to be refunded.
+
+    # Compiling msig template on the sender side.
+    accepted_msig = smc_msig(
+        SENDER_ADDR, setup_response.recipient, NONCE, MIN_REFUND_BLOCK, MAX_REFUND_BLOCK
+    )
+    # Compiling lsig template on the sender side.
+    accepted_lsig = smc_lsig(SENDER_ADDR, MIN_REFUND_BLOCK, MAX_REFUND_BLOCK)
+
+    # Merging signatures for the lsig
+    accepted_lsig.sign_multisig(accepted_msig, SENDER_PRIVATE_KEY)
+    accepted_lsig.lsig.msig.subsigs[1].signature = setup_response.lsigSignature
+
+    print(f"{accepted_lsig.verify() = }")
 
 
 async def main():

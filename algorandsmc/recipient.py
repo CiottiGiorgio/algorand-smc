@@ -30,6 +30,7 @@ async def setup_channel(websocket):
 
     print(setup_proposal)
 
+    # Compiling msig template on the recipient side.
     proposed_msig = smc_msig(
         setup_proposal.sender,
         RECIPIENT_ADDR,
@@ -38,13 +39,23 @@ async def setup_channel(websocket):
         setup_proposal.maxRefundBlock,
     )
     # TODO: Se proposed_msig esiste già nella memoria del recipient, non può essere riutilizzato per un nuovo setup.
+    # Compiling lsig template on the recipient side.
     proposed_lsig = smc_lsig(
         setup_proposal.sender,
         setup_proposal.minRefundBlock,
         setup_proposal.maxRefundBlock,
     )
     # TODO: Figure out if there are any checks necessary at this point for the recipient.
+    # Signing the lsig with the msig only on the recipient side.
+    # Crucially, the lsig MUST not be signed using the recipient secret key directly.
+    # That would allow the sender to close out the recipient balance in the future.
+    # TODO: Create a test that validates that the lsig CANNOT be used on the recipient account in the future.
+    #  Also, create a test that validates that the lsig CAN be used on the msig account in the future.
     proposed_lsig.sign_multisig(proposed_msig, RECIPIENT_PRIVATE_KEY)
+
+    # TODO: Extract the signature of the recipient from proposed_lsig in a way that does not rely on explicit index.
+    #  Although, as long as both parties compile from the same template, they should find the addresses in the same
+    #  index each time and on each side.
 
     await websocket.send(
         setupResponse(
@@ -52,6 +63,8 @@ async def setup_channel(websocket):
             lsigSignature=proposed_lsig.lsig.msig.subsigs[1].signature,
         ).SerializeToString()
     )
+
+    # At this point, the recipient does not own a correctly signed lsig because it's missing sender's signature.
 
 
 async def receive_payment(websocket):
