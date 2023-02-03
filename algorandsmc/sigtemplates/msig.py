@@ -1,8 +1,17 @@
+"""
+File that implements the Layer-1 multisignature account shared between sender and recipient.
+"""
 from algosdk.transaction import Multisig
 from algosdk.v2client.algod import AlgodClient
 
 
-def smc_msig(sender_addr, recipient_addr, nonce, min_block_refund, max_block_refund) -> Multisig:
+def smc_msig(
+    sender_addr: str,
+    recipient_addr: str,
+    nonce: int,
+    min_block_refund: int,
+    max_block_refund: int,
+) -> Multisig:
     """
     Returns all necessary info about a Simple Micropayment Channel given setup parameters.
     (A)lice is the sender and (B)ob the recipient. (C)ontract is the fictitious smart signature account that always
@@ -14,19 +23,21 @@ def smc_msig(sender_addr, recipient_addr, nonce, min_block_refund, max_block_ref
     :param nonce: Parameter to generate multiple channels given fixed sender, recipient and block contraints
     :param min_block_refund: Minimum block for A's refund transaction to be valid
     :param max_block_refund: Last block for A's refund transaction to be valid
-    :return: address of the multisignature account shared between Alice and Bob with the shared arguments
+    :return: SDK wrapper around the multisignature account shared between Alice and Bob
     """
     # Sandbox node
     node_client = AlgodClient("a" * 64, "http://localhost:4001")
 
+    # fmt: off
     # Derive C's address.
     # This code always fails because it terminates with more than one element on the stack.
     teal = "\n".join([
         f"int {nonce}",
         f"int {min_block_refund}",
         f"int {max_block_refund}",
-        f"int 0"
+        "int 0"
     ])
+    # fmt: on
     contract_addr = node_client.compile(teal)["hash"]
 
     return Multisig(1, 2, [sender_addr, recipient_addr, contract_addr])

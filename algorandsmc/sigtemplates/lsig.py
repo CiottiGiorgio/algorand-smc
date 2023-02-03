@@ -1,15 +1,36 @@
+"""
+File that implements the Logic Signature with the msig as the delegating account.
+"""
 import base64
 
 from algosdk.transaction import LogicSigAccount
 from algosdk.v2client.algod import AlgodClient
-from pyteal import compileTeal, Mode, Int, Pop, Assert, Seq, Txn, TxnType, Bytes, Global, Approve
+from pyteal import (
+    Approve,
+    Assert,
+    Bytes,
+    Global,
+    Int,
+    Mode,
+    Seq,
+    Txn,
+    TxnType,
+    compileTeal,
+)
 
 
 def smc_lsig(
-        sender,
-        min_block_refund,
-        max_block_refund
+    sender: str, min_block_refund: int, max_block_refund: int
 ) -> LogicSigAccount:
+    """
+    Returns all necessary information about the logic signature that enables the sender (Alice) to be refunded according
+     to usual constraints of an SMC.
+
+    :param sender: Algorand address of Alice
+    :param min_block_refund: Minimum block for Alice's refund transaction to be valid
+    :param max_block_refund: Last block for Alice's refund transaction to be valid
+    :return: SDK wrapper around the bytecode of the logic signature
+    """
     # Sandbox node
     node_client = AlgodClient("a" * 64, "http://localhost:4001")
 
@@ -21,9 +42,9 @@ def smc_lsig(
             Txn.fee() == Global.min_txn_fee(),
             Txn.close_remainder_to() == Bytes(sender),
             Txn.first_valid() >= Int(min_block_refund),
-            Txn.last_valid() <= Int(max_block_refund)
+            Txn.last_valid() <= Int(max_block_refund),
         ),
-        Approve()
+        Approve(),
     )
 
     lsig_teal = compileTeal(lsig_pyteal, Mode.Signature, version=2)
