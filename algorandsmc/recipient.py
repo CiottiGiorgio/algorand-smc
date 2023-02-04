@@ -31,6 +31,9 @@ MIN_ACCEPTED_LIFETIME = 2_000
 #  the whole msig account and so it is safe to open a new channel so long as _any_ parameter changes.
 
 
+OPEN_CHANNELS = set()
+
+
 async def setup_channel(websocket):
     node_client = get_sandbox_client()
     setup_proposal: setupProposal = setupProposal.FromString(await websocket.recv())
@@ -60,7 +63,9 @@ async def setup_channel(websocket):
         setup_proposal.maxRefundBlock,
     )
     print(f"{proposed_msig.address() = }")
-    # TODO: Se proposed_msig esiste già nella memoria del recipient, non può essere riutilizzato per un nuovo setup.
+    if proposed_msig.address() in OPEN_CHANNELS:
+        raise ValueError("This channel is already open.")
+
     # Compiling lsig template on the recipient side.
     proposed_lsig = smc_lsig(
         setup_proposal.sender,
@@ -79,6 +84,8 @@ async def setup_channel(websocket):
     #  Although, as long as both parties compile from the same template, they should find the addresses in the same
     #  index each time and on each side.
 
+    # Recipient accepts this channel.
+    OPEN_CHANNELS.add(proposed_msig.address())
     await websocket.send(
         setupResponse(
             recipient=RECIPIENT_ADDR,
