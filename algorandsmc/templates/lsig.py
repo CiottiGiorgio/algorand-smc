@@ -3,6 +3,7 @@ File that implements the Logic Signature with the msig as the delegating account
 """
 import base64
 
+from algosdk.encoding import decode_address
 from algosdk.transaction import LogicSigAccount
 from pyteal import (
     Approve,
@@ -41,7 +42,7 @@ def smc_lsig(
             Txn.type_enum() == TxnType.Payment,
             Txn.amount() == Int(0),
             Txn.fee() == Global.min_txn_fee(),
-            Txn.close_remainder_to() == Bytes(sender),
+            Txn.close_remainder_to() == Bytes(decode_address(sender)),
             Txn.first_valid() >= Int(min_block_refund),
             Txn.last_valid() <= Int(max_block_refund),
         ),
