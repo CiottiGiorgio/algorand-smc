@@ -2,6 +2,7 @@
 File that implements all things related to the recipient side of an SMC.
 """
 import asyncio
+import logging
 
 import websockets
 from algosdk.account import address_from_private_key
@@ -12,6 +13,8 @@ from algosdk.mnemonic import to_private_key
 from algorandsmc.smc_pb2 import SMCMethod, setupProposal, setupResponse
 from algorandsmc.templates import smc_lsig, smc_msig
 from algorandsmc.utils import get_sandbox_client
+
+logging.root.setLevel(logging.INFO)
 
 RECIPIENT_PRIVATE_KEY_MNEMONIC = (
     "question middle cube wire breeze choose rival accident disorder wood "
@@ -46,13 +49,16 @@ async def setup_channel(websocket):
 
     chain_status = node_client.status()
     # Should be at the very most 5 seconds per block. More than that and we can say that we are out of sync.
-    if not chain_status['time-since-last-round'] < 6 * 10**9:
+    if not chain_status["time-since-last-round"] < 6 * 10**9:
         raise Exception("Recipient knowledge of the chain is not synchronized.")
     # Channel lifetime should be enough.
-    if not setup_proposal.minRefundBlock >= chain_status["last-round"] + MIN_ACCEPTED_LIFETIME:
+    if (
+        not setup_proposal.minRefundBlock
+        >= chain_status["last-round"] + MIN_ACCEPTED_LIFETIME
+    ):
         raise ValueError("Channel lifetime is not reasonable.")
 
-    print(setup_proposal)
+    logging.info(f"{setup_proposal = }")
 
     # Compiling msig template on the recipient side.
     proposed_msig = smc_msig(
@@ -62,7 +68,7 @@ async def setup_channel(websocket):
         setup_proposal.minRefundBlock,
         setup_proposal.maxRefundBlock,
     )
-    print(f"{proposed_msig.address() = }")
+    logging.info(f"{proposed_msig.address() = }")
     if proposed_msig.address() in OPEN_CHANNELS:
         raise ValueError("This channel is already open.")
 

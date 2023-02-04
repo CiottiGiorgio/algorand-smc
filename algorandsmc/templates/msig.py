@@ -2,7 +2,6 @@
 File that implements the Layer-1 multisignature account shared between sender and recipient.
 """
 from algosdk.transaction import Multisig
-from algosdk.v2client.algod import AlgodClient
 
 from algorandsmc.utils import get_sandbox_client
 

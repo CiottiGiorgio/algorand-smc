@@ -4,7 +4,6 @@ File that implements the Logic Signature with the msig as the delegating account
 import base64
 
 from algosdk.transaction import LogicSigAccount
-from algosdk.v2client.algod import AlgodClient
 from pyteal import (
     Approve,
     Assert,

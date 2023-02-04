@@ -2,6 +2,7 @@
 File that implements all things related to the sender side of an SMC.
 """
 import asyncio
+import logging
 
 import websockets
 from algosdk.account import address_from_private_key
@@ -11,6 +12,8 @@ from algosdk.mnemonic import to_private_key
 # pylint: disable-next=no-name-in-module
 from algorandsmc.smc_pb2 import SMCMethod, setupProposal, setupResponse
 from algorandsmc.templates import smc_lsig, smc_msig
+
+logging.root.setLevel(logging.INFO)
 
 SENDER_PRIVATE_KEY_MNEMONIC = (
     "people disagree couch mind bean tortoise project gorilla suffer "
@@ -44,13 +47,13 @@ async def sender(websocket):
     if not is_valid_address(setup_response.recipient):
         raise ValueError
 
-    print(setup_response)
+    logging.info(f"{setup_response = }")
 
     # Compiling msig template on the sender side.
     accepted_msig = smc_msig(
         SENDER_ADDR, setup_response.recipient, NONCE, MIN_REFUND_BLOCK, MAX_REFUND_BLOCK
     )
-    print(f"{accepted_msig.address() = }")
+    logging.info(f"{accepted_msig.address() = }")
     # Compiling lsig template on the sender side.
     accepted_lsig = smc_lsig(SENDER_ADDR, MIN_REFUND_BLOCK, MAX_REFUND_BLOCK)
 
@@ -60,7 +63,7 @@ async def sender(websocket):
     if not accepted_lsig.verify():
         raise ValueError
 
-    print(f"{accepted_lsig.verify() = }")
+    logging.info(f"{accepted_lsig.verify() = }")
 
     # TODO: Sender should at this point fund the msig and send the TxID to recipient.
 
