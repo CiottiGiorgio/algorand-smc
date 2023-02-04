@@ -3,12 +3,13 @@ File that implements all things related to the sender side of an SMC.
 """
 import asyncio
 import logging
+from typing import Tuple
 
 import websockets
 from algosdk.account import address_from_private_key
 from algosdk.encoding import is_valid_address
 from algosdk.mnemonic import to_private_key
-from algosdk.transaction import PaymentTxn, wait_for_confirmation
+from algosdk.transaction import PaymentTxn, wait_for_confirmation, Multisig, LogicSigAccount
 
 # pylint: disable-next=no-name-in-module
 from algorandsmc.smc_pb2 import SMCMethod, setupProposal, setupResponse
@@ -31,7 +32,7 @@ MIN_REFUND_BLOCK = 10_000
 MAX_REFUND_BLOCK = 11_000
 
 
-async def sender(websocket):
+async def setup_channel(websocket) -> Tuple[Multisig, LogicSigAccount]:
     node_algod = get_sandbox_algod()
 
     await websocket.send(
@@ -82,10 +83,17 @@ async def sender(websocket):
     )
     wait_for_confirmation(node_algod, txid)
 
+    return accepted_msig, accepted_lsig
+
+
+async def pay(websocket, msig, lsig):
+    logging.info("pay")
+
 
 async def main():
     async with websockets.connect("ws://localhost:55000") as websocket:
-        await sender(websocket)
+        msig, lsig = await setup_channel(websocket)
+        await pay(websocket, msig, lsig)
 
 
 if __name__ == "__main__":
