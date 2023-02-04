@@ -26,6 +26,9 @@ async def setup_channel(websocket):
     # Protobuf doesn't know what constitutes a valid Algorand address.
     if not is_valid_address(setup_proposal.sender):
         raise ValueError
+    # TODO: Check that the channel has reasonable lifetime:
+    #  - min_block_refund should be in the future
+    #  - min_block_refund should be long enough that the channel is alive for a reasonable amount of time.
 
     print(setup_proposal)
 
