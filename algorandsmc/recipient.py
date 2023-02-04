@@ -43,7 +43,7 @@ async def setup_channel(websocket):
 
     chain_status = node_client.status()
     # Should be at the very most 5 seconds per block. More than that and we can say that we are out of sync.
-    if not chain_status['time-since-last-round'] < 7 * 10**9:
+    if not chain_status['time-since-last-round'] < 6 * 10**9:
         raise Exception("Recipient knowledge of the chain is not synchronized.")
     # Channel lifetime should be enough.
     if not setup_proposal.minRefundBlock >= chain_status["last-round"] + MIN_ACCEPTED_LIFETIME:
