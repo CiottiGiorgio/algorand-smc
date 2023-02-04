@@ -25,5 +25,6 @@ message fundingTxID {
 }
 
 message PaymentTx {
-  bytes txSignature = 1;
+  uint64 cumulativeAmount = 1;
+  bytes txSignature = 2;
 }
