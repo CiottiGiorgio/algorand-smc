@@ -84,6 +84,10 @@ async def setup_channel(websocket):
     # That would allow the sender to close out the recipient balance in the future.
     # TODO: Create a test that validates that the lsig CANNOT be used on the recipient account in the future.
     #  Also, create a test that validates that the lsig CAN be used on the msig account in the future.
+    #  As it turns out, this is tricky to do because a dryrun will not match the correct signature against
+    #  the sender account. I think it just checks lsig TEAL and calls it a day. Instead, the sandbox correctly
+    #  refuses to process a transaction with lsig where the lsig was not signed by the msig.
+    #  These tests should run with custom parameters against the sandbox.
     proposed_lsig.sign_multisig(proposed_msig, RECIPIENT_PRIVATE_KEY)
 
     # Recipient accepts this channel.
