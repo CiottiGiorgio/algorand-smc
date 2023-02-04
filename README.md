@@ -59,7 +59,7 @@ use to derive the Layer-1 primitives starting from the agreed upon parameters of
 - Alice initiates the setup by sending Bob `(nonce: int, min_block_refund: int, max_block_refund: int)`.
 - Bob must validate, according to his own knowledge of the Layer-1, that
 the parameters of the setup are reasonable.
-- Bob has enough information to derive `(C address, msig and lsig)`.
+- Bob has enough information to derive `(C address, msig, lsig)`.
 - Bob signs his part of the refund lsig and sends `(Bob's signature of lsig, Bob's public address)`.
 - Alice now has all information to derive `(C, msig, lsig)` on her side.
 She validates that Bob's signature of lsig is valid and that the setup proposal has been
@@ -74,4 +74,4 @@ is at most the current balance of the msig address.
 
 Alice can also sign a transaction with the shared lsig to unilaterally close the channel and be refunded if Bob is not cooperating.
 Although it should be noted that the lsig allows _only_ Alice to be refunded, Bob does not own a fully signed lsig.
-Vice versa for Layer-2 payments exchanged.
+By the same token, Alice signs payments _only_ to Bob but does not own a fully signed payment transaction.

@@ -13,7 +13,7 @@ from algosdk.transaction import PaymentTxn, wait_for_confirmation
 # pylint: disable-next=no-name-in-module
 from algorandsmc.smc_pb2 import SMCMethod, setupProposal, setupResponse
 from algorandsmc.templates import smc_lsig, smc_msig
-from algorandsmc.utils import get_sandbox_algod, get_sandbox_indexer
+from algorandsmc.utils import get_sandbox_algod
 
 logging.root.setLevel(logging.INFO)
 
@@ -33,7 +33,6 @@ MAX_REFUND_BLOCK = 11_000
 
 async def sender(websocket):
     node_algod = get_sandbox_algod()
-    get_sandbox_indexer()
 
     await websocket.send(
         SMCMethod(method=SMCMethod.MethodEnum.SETUP_CHANNEL).SerializeToString()
@@ -70,6 +69,11 @@ async def sender(websocket):
 
     logging.info(f"{accepted_lsig.verify() = }")
 
+    # This last step is not technically required from the sender at this point in time.
+    # However, for sake of simplicity, we choose to fund the msig right now.
+    # It should be noted that is not necessary to fund it before sending any Layer-2 payment.
+    # Bob should only check the balance of the msig when accepting payments since this step is not
+    #  crucial to channel setup.
     sp = node_algod.suggested_params()
     txid = node_algod.send_transaction(
         PaymentTxn(SENDER_ADDR, sp, accepted_msig.address(), 10_000_000).sign(

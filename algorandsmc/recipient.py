@@ -12,7 +12,7 @@ from algosdk.mnemonic import to_private_key
 # pylint: disable-next=no-name-in-module
 from algorandsmc.smc_pb2 import SMCMethod, setupProposal, setupResponse
 from algorandsmc.templates import smc_lsig, smc_msig
-from algorandsmc.utils import get_sandbox_algod, get_sandbox_indexer
+from algorandsmc.utils import get_sandbox_algod
 
 logging.root.setLevel(logging.INFO)
 
@@ -39,7 +39,6 @@ OPEN_CHANNELS = set()
 
 async def setup_channel(websocket):
     node_algod = get_sandbox_algod()
-    get_sandbox_indexer()
 
     setup_proposal: setupProposal = setupProposal.FromString(await websocket.recv())
     # Protobuf doesn't know what constitutes a valid Algorand address.
