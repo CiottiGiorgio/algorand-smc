@@ -18,6 +18,8 @@ from pyteal import (
     compileTeal,
 )
 
+from algorandsmc.utils import get_sandbox_client
+
 
 def smc_lsig(
     sender: str, min_block_refund: int, max_block_refund: int
@@ -32,7 +34,7 @@ def smc_lsig(
     :return: SDK wrapper around the bytecode of the logic signature
     """
     # Sandbox node
-    node_client = AlgodClient("a" * 64, "http://localhost:4001")
+    node_client = get_sandbox_client()
 
     # TODO: Figure out if there are some checks left to do.
     lsig_pyteal = Seq(

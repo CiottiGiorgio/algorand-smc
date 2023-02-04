@@ -11,6 +11,7 @@ from algosdk.mnemonic import to_private_key
 # pylint: disable-next=no-name-in-module
 from algorandsmc.smc_pb2 import SMCMethod, setupProposal, setupResponse
 from algorandsmc.templates import smc_lsig, smc_msig
+from algorandsmc.utils import get_sandbox_client
 
 RECIPIENT_PRIVATE_KEY_MNEMONIC = (
     "question middle cube wire breeze choose rival accident disorder wood "
@@ -20,15 +21,33 @@ RECIPIENT_PRIVATE_KEY_MNEMONIC = (
 RECIPIENT_PRIVATE_KEY = to_private_key(RECIPIENT_PRIVATE_KEY_MNEMONIC)
 RECIPIENT_ADDR = address_from_private_key(RECIPIENT_PRIVATE_KEY)
 
+# This is the minimum lifetime of a channel that the recipient is willing to accept.
+# The channel should last at least 2_000 blocks starting from the current one.
+MIN_ACCEPTED_LIFETIME = 2_000
+# Recipient has no opinion on how long should the refund windows be.
+# Recipient should remember the channel that he has signed lsigs for and avoid accepting them anyway.
+# Recipient cannot be tricked into opening a new channel for which there is an already-signed lsig that happens
+#  earlier than the one proposed because the setup parameters change the C account. Therefore, they also change
+#  the whole msig account and so it is safe to open a new channel so long as _any_ parameter changes.
+
 
 async def setup_channel(websocket):
+    node_client = get_sandbox_client()
     setup_proposal: setupProposal = setupProposal.FromString(await websocket.recv())
     # Protobuf doesn't know what constitutes a valid Algorand address.
     if not is_valid_address(setup_proposal.sender):
-        raise ValueError
-    # TODO: Check that the channel has reasonable lifetime:
-    #  - min_block_refund should be in the future
-    #  - min_block_refund should be long enough that the channel is alive for a reasonable amount of time.
+        raise ValueError("Sender address is not a valid Algorand address.")
+    # Refund condition should be sound.
+    if not setup_proposal.minRefundBlock <= setup_proposal.maxRefundBlock:
+        raise ValueError("Refund condition can never happen.")
+
+    chain_status = node_client.status()
+    # Should be at the very most 5 seconds per block. More than that and we can say that we are out of sync.
+    if not chain_status['time-since-last-round'] < 7 * 10**9:
+        raise Exception("Recipient knowledge of the chain is not synchronized.")
+    # Channel lifetime should be enough.
+    if not setup_proposal.minRefundBlock >= chain_status["last-round"] + MIN_ACCEPTED_LIFETIME:
+        raise ValueError("Channel lifetime is not reasonable.")
 
     print(setup_proposal)
 

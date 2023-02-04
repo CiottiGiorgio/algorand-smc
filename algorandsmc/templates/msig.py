@@ -4,6 +4,8 @@ File that implements the Layer-1 multisignature account shared between sender an
 from algosdk.transaction import Multisig
 from algosdk.v2client.algod import AlgodClient
 
+from algorandsmc.utils import get_sandbox_client
+
 
 def smc_msig(
     sender_addr: str,
@@ -26,7 +28,7 @@ def smc_msig(
     :return: SDK wrapper around the multisignature account shared between Alice and Bob
     """
     # Sandbox node
-    node_client = AlgodClient("a" * 64, "http://localhost:4001")
+    node_client = get_sandbox_client()
 
     # fmt: off
     # Derive C's address.
