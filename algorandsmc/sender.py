@@ -9,7 +9,14 @@ import websockets
 from algosdk.account import address_from_private_key
 from algosdk.encoding import is_valid_address
 from algosdk.mnemonic import to_private_key
-from algosdk.transaction import PaymentTxn, wait_for_confirmation, Multisig, LogicSigAccount
+from algosdk.transaction import (
+    LogicSigAccount,
+    LogicSigTransaction,
+    Multisig,
+    PaymentTxn,
+    create_dryrun,
+    wait_for_confirmation,
+)
 
 # pylint: disable-next=no-name-in-module
 from algorandsmc.smc_pb2 import SMCMethod, setupProposal, setupResponse
@@ -67,6 +74,30 @@ async def setup_channel(websocket) -> Tuple[Multisig, LogicSigAccount]:
     accepted_lsig.lsig.msig.subsigs[1].signature = setup_response.lsigSignature
     if not accepted_lsig.verify():
         raise ValueError("Recipient multisig subsig of the lsig is not valid.")
+
+    # This test using dryrun is not part of the protocol itself,
+    #  but it exemplifies how the sender is able to be refunded in the future.
+    sp = node_algod.suggested_params()
+    sp.first = MIN_REFUND_BLOCK
+    sp.last = MAX_REFUND_BLOCK
+    refund_test = node_algod.dryrun(
+        create_dryrun(
+            node_algod,
+            [
+                LogicSigTransaction(
+                    PaymentTxn(
+                        accepted_msig.address(),
+                        sp,
+                        SENDER_ADDR,
+                        0,
+                        close_remainder_to=SENDER_ADDR,
+                    ),
+                    accepted_lsig,
+                )
+            ],
+        )
+    )
+    assert refund_test["txns"][0]["logic-sig-messages"][0] == "PASS"
 
     logging.info(f"{accepted_lsig.verify() = }")
 
