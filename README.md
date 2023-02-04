@@ -24,4 +24,53 @@ Nevertheless, the implementation takes an interesting shape on Algorand because 
 primitives provided by its Layer-1.
 
 Instead of `UTXO`, `Timelocks` and `Script language`, we have a rich Algorand Layer-1 feature set that we can leverage.
-This implementation makes use of `native msig accounts`, `Logic Signatures (lsig)`, `firstBlock`, `lastBlock` and `TEAL language`.
+This implementation makes use of `native msig accounts`, `Logic Signatures (lsig)`, `firstBlock`, `lastBlock`, `closeTo` and `TEAL language`.
+
+## Design
+### Multisignature
+We would also like to have as many active channels between the two parties that can be
+customized in the amount of initial funding during setup, minimum and maximum lifetime of the channel.
+
+For this reason, we use 2-out-of-3 Algorand Layer-1 msig accounts shared between A (sender), B (recipient) and C (parameter address).
+C should be an address that is inert and can never possibly interfere with the coordination
+between A and B. We choose a Smart Signature Account (aka contract account) programmed to
+always reject upon being asked to sign any kind of transaction.
+There are virtually an infinite number of msig accounts shared between A and B with this technique.
+Also, the address of this contract account is essentially the hash of the program.
+We inject setup parameters into the program to make it easy to detect already open channels
+instead of using random bytes.
+
+Since there are a lot of signatures involved, a msig that has not yet reached the end of
+its lifetime shouldn't be accepted by the recipient. Deriving the msig address and checking
+against a local database is easy to do.
+
+### LogicSignature
+Alice's refund condition happens through the use of a lsig.
+The msig account must delegate the authority executing the refund transaction to Alice alone. Following Algorand terminology, msig becomes a delegating account and Alice the
+delegated account.
+
+This lsig is TEAL code signed by the msig account (in turn, both Alice and Bob since they are the participants of the msig).
+
+### Communication protocol
+Both parties should exchange as little information as possible in the Layer-2.
+That's why both parties have access to a template library within this package that they can
+use to derive the Layer-1 primitives starting from the agreed upon parameters of the SMC.
+
+- Alice initiates the setup by sending Bob `(nonce: int, min_block_refund: int, max_block_refund: int)`.
+- Bob must validate, according to his own knowledge of the Layer-1, that
+the parameters of the setup are reasonable.
+- Bob has enough information to derive `(C address, msig and lsig)`.
+- Bob signs his part of the refund lsig and sends `(Bob's signature of lsig, Bob's public address)`.
+- Alice now has all information to derive `(C, msig, lsig)` on her side.
+She validates that Bob's signature of lsig is valid and that the setup proposal has been
+accepted.
+- Alice is now free to fund the shared msig account and send Bob `(TxID)` of the funding transaction (this last step is optional because Bob could monitor the msig address for itself)
+
+Once this setup is completed, Alice can just pay Bob by signing her part of payment transaction from the msig to Bob.
+Close out field is used in each payment transaction to make sure that Alice gets back
+whatever is left in the channel when Bob closes it.
+Bob can accept these transactions and, at some point, sign the highest value transaction, send it to the network and close the channel.
+
+Alice can also sign a transaction with the shared lsig to unilaterally close the channel and be refunded if Bob is not cooperating.
+Although it should be noted that the lsig allows _only_ Alice to be refunded, Bob does not own a fully signed lsig.
+Vice versa for Layer-2 payments exchanged.
