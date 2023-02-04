@@ -64,12 +64,13 @@ the parameters of the setup are reasonable.
 - Alice now has all information to derive `(C, msig, lsig)` on her side.
 She validates that Bob's signature of lsig is valid and that the setup proposal has been
 accepted.
-- Alice is now free to fund the shared msig account and send Bob `(TxID)` of the funding transaction (this last step is optional because Bob could monitor the msig address for itself)
 
 Once this setup is completed, Alice can just pay Bob by signing her part of payment transaction from the msig to Bob.
 Close out field is used in each payment transaction to make sure that Alice gets back
 whatever is left in the channel when Bob closes it.
 Bob can accept these transactions and, at some point, sign the highest value transaction, send it to the network and close the channel.
+Bob should always verify in the Layer-1 that the cumulative amount that he has received,
+is at most the current balance of the msig address.
 
 Alice can also sign a transaction with the shared lsig to unilaterally close the channel and be refunded if Bob is not cooperating.
 Although it should be noted that the lsig allows _only_ Alice to be refunded, Bob does not own a fully signed lsig.

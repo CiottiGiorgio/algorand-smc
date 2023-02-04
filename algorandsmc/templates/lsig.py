@@ -17,7 +17,7 @@ from pyteal import (
     compileTeal,
 )
 
-from algorandsmc.utils import get_sandbox_client
+from algorandsmc.utils import get_sandbox_algod
 
 
 def smc_lsig(
@@ -33,7 +33,7 @@ def smc_lsig(
     :return: SDK wrapper around the bytecode of the logic signature
     """
     # Sandbox node
-    node_client = get_sandbox_client()
+    node_algod = get_sandbox_algod()
 
     # TODO: Figure out if there are some checks left to do.
     lsig_pyteal = Seq(
@@ -50,4 +50,4 @@ def smc_lsig(
 
     lsig_teal = compileTeal(lsig_pyteal, Mode.Signature, version=2)
 
-    return LogicSigAccount(base64.b64decode(node_client.compile(lsig_teal)["result"]))
+    return LogicSigAccount(base64.b64decode(node_algod.compile(lsig_teal)["result"]))

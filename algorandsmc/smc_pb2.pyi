@@ -23,12 +23,6 @@ class SMCMethod(_message.Message):
     method: SMCMethod.MethodEnum
     def __init__(self, method: _Optional[_Union[SMCMethod.MethodEnum, str]] = ...) -> None: ...
 
-class fundingTxID(_message.Message):
-    __slots__ = ["txid"]
-    TXID_FIELD_NUMBER: _ClassVar[int]
-    txid: str
-    def __init__(self, txid: _Optional[str] = ...) -> None: ...
-
 class setupProposal(_message.Message):
     __slots__ = ["maxRefundBlock", "minRefundBlock", "nonce", "sender"]
     MAXREFUNDBLOCK_FIELD_NUMBER: _ClassVar[int]

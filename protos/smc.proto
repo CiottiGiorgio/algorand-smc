@@ -20,10 +20,6 @@ message setupResponse {
   bytes lsigSignature = 2;
 }
 
-message fundingTxID {
-  string txid = 1;
-}
-
 message PaymentTx {
   uint64 cumulativeAmount = 1;
   bytes txSignature = 2;

@@ -8,10 +8,12 @@ import websockets
 from algosdk.account import address_from_private_key
 from algosdk.encoding import is_valid_address
 from algosdk.mnemonic import to_private_key
+from algosdk.transaction import PaymentTxn, wait_for_confirmation
 
 # pylint: disable-next=no-name-in-module
 from algorandsmc.smc_pb2 import SMCMethod, setupProposal, setupResponse
 from algorandsmc.templates import smc_lsig, smc_msig
+from algorandsmc.utils import get_sandbox_algod, get_sandbox_indexer
 
 logging.root.setLevel(logging.INFO)
 
@@ -30,6 +32,9 @@ MAX_REFUND_BLOCK = 11_000
 
 
 async def sender(websocket):
+    node_algod = get_sandbox_algod()
+    get_sandbox_indexer()
+
     await websocket.send(
         SMCMethod(method=SMCMethod.MethodEnum.SETUP_CHANNEL).SerializeToString()
     )
@@ -45,7 +50,7 @@ async def sender(websocket):
     setup_response = setupResponse.FromString(await websocket.recv())
     # Protobuf doesn't know what constitutes a valid Algorand address.
     if not is_valid_address(setup_response.recipient):
-        raise ValueError
+        raise ValueError("Recipient address is not a valid Algorand address.")
 
     logging.info(f"{setup_response = }")
 
@@ -61,11 +66,17 @@ async def sender(websocket):
     accepted_lsig.sign_multisig(accepted_msig, SENDER_PRIVATE_KEY)
     accepted_lsig.lsig.msig.subsigs[1].signature = setup_response.lsigSignature
     if not accepted_lsig.verify():
-        raise ValueError
+        raise ValueError("Recipient multisig subsig of the lsig is not valid.")
 
     logging.info(f"{accepted_lsig.verify() = }")
 
-    # TODO: Sender should at this point fund the msig and send the TxID to recipient.
+    sp = node_algod.suggested_params()
+    txid = node_algod.send_transaction(
+        PaymentTxn(SENDER_ADDR, sp, accepted_msig.address(), 10_000_000).sign(
+            SENDER_PRIVATE_KEY
+        )
+    )
+    wait_for_confirmation(node_algod, txid)
 
 
 async def main():

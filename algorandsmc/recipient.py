@@ -12,7 +12,7 @@ from algosdk.mnemonic import to_private_key
 # pylint: disable-next=no-name-in-module
 from algorandsmc.smc_pb2 import SMCMethod, setupProposal, setupResponse
 from algorandsmc.templates import smc_lsig, smc_msig
-from algorandsmc.utils import get_sandbox_client
+from algorandsmc.utils import get_sandbox_algod, get_sandbox_indexer
 
 logging.root.setLevel(logging.INFO)
 
@@ -38,7 +38,9 @@ OPEN_CHANNELS = set()
 
 
 async def setup_channel(websocket):
-    node_client = get_sandbox_client()
+    node_algod = get_sandbox_algod()
+    get_sandbox_indexer()
+
     setup_proposal: setupProposal = setupProposal.FromString(await websocket.recv())
     # Protobuf doesn't know what constitutes a valid Algorand address.
     if not is_valid_address(setup_proposal.sender):
@@ -47,10 +49,10 @@ async def setup_channel(websocket):
     if not setup_proposal.minRefundBlock <= setup_proposal.maxRefundBlock:
         raise ValueError("Refund condition can never happen.")
 
-    chain_status = node_client.status()
+    chain_status = node_algod.status()
     # Should be at the very most 5 seconds per block. More than that and we can say that we are out of sync.
-    if not chain_status["time-since-last-round"] < 6 * 10**9:
-        raise Exception("Recipient knowledge of the chain is not synchronized.")
+    # if not chain_status["time-since-last-round"] < 6 * 10**9:
+    #     raise Exception("Recipient knowledge of the chain is not synchronized.")
     # Channel lifetime should be enough.
     if (
         not setup_proposal.minRefundBlock
@@ -94,9 +96,6 @@ async def setup_channel(websocket):
         ).SerializeToString()
     )
     # At this point, the recipient does not own a correctly signed lsig because it's missing sender's signature.
-
-    # funding_txid: fundingTxID = fundingTxID.FromString(await websocket.recv())
-    # TODO: Check that the funding happened in order to start accepting SMC payments.
 
 
 async def receive_payment(websocket):
