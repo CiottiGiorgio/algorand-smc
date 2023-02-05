@@ -21,7 +21,7 @@ from pyteal import (
 from algorandsmc.utils import get_sandbox_algod
 
 
-def smc_lsig(
+def smc_lsig_refund(
     sender: str, min_block_refund: int, max_block_refund: int
 ) -> LogicSigAccount:
     """
@@ -36,6 +36,8 @@ def smc_lsig(
     # Sandbox node
     node_algod = get_sandbox_algod()
 
+    # As per Algorand guidelines. All lsigs should contain an end block.
+    # It's dangerous to sign lsigs that last for eternity.
     # TODO: Figure out if there are some checks left to do.
     lsig_pyteal = Seq(
         Assert(
@@ -52,3 +54,7 @@ def smc_lsig(
     lsig_teal = compileTeal(lsig_pyteal, Mode.Signature, version=2)
 
     return LogicSigAccount(base64.b64decode(node_algod.compile(lsig_teal)["result"]))
+
+
+def smc_lsig_pay() -> LogicSigAccount:
+    ...

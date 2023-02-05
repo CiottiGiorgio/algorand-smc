@@ -20,7 +20,7 @@ from algosdk.transaction import (
 
 # pylint: disable-next=no-name-in-module
 from algorandsmc.smc_pb2 import SMCMethod, setupProposal, setupResponse
-from algorandsmc.templates import smc_lsig, smc_msig
+from algorandsmc.templates import smc_lsig_refund, smc_msig
 from algorandsmc.utils import get_sandbox_algod
 
 logging.root.setLevel(logging.INFO)
@@ -67,45 +67,23 @@ async def setup_channel(websocket) -> Tuple[Multisig, LogicSigAccount]:
     )
     logging.info(f"{accepted_msig.address() = }")
     # Compiling lsig template on the sender side.
-    accepted_lsig = smc_lsig(SENDER_ADDR, MIN_REFUND_BLOCK, MAX_REFUND_BLOCK)
+    accepted_refund_lsig = smc_lsig_refund(SENDER_ADDR, MIN_REFUND_BLOCK, MAX_REFUND_BLOCK)
 
     # Merging signatures for the lsig
-    accepted_lsig.sign_multisig(accepted_msig, SENDER_PRIVATE_KEY)
-    accepted_lsig.lsig.msig.subsigs[1].signature = setup_response.lsigSignature
-    if not accepted_lsig.verify():
-        raise ValueError("Recipient multisig subsig of the lsig is not valid.")
+    accepted_refund_lsig.sign_multisig(accepted_msig, SENDER_PRIVATE_KEY)
+    accepted_refund_lsig.lsig.msig.subsigs[1].signature = setup_response.lsigSignature
+    if not accepted_refund_lsig.verify():
+        # Least incomprehensible sentence in this code.
+        raise ValueError("Recipient multisig subsig of the refund lsig is not valid.")
 
-    # This test using dryrun is not part of the protocol itself,
-    #  but it exemplifies how the sender is able to be refunded in the future.
-    sp = node_algod.suggested_params()
-    sp.first = MIN_REFUND_BLOCK
-    sp.last = MAX_REFUND_BLOCK
-    refund_test = node_algod.dryrun(
-        create_dryrun(
-            node_algod,
-            [
-                LogicSigTransaction(
-                    PaymentTxn(
-                        accepted_msig.address(),
-                        sp,
-                        SENDER_ADDR,
-                        0,
-                        close_remainder_to=SENDER_ADDR,
-                    ),
-                    accepted_lsig,
-                )
-            ],
-        )
-    )
-    assert refund_test["txns"][0]["logic-sig-messages"][0] == "PASS"
-
-    logging.info(f"{accepted_lsig.verify() = }")
+    logging.info(f"{accepted_refund_lsig.verify() = }")
 
     # This last step is not technically required from the sender at this point in time.
     # However, for sake of simplicity, we choose to fund the msig right now.
     # It should be noted that is not necessary to fund it before sending any Layer-2 payment.
     # Bob should only check the balance of the msig when accepting payments since this step is not
     #  crucial to channel setup.
+    # This is also why the initial amount of the channel is not exchanged.
     sp = node_algod.suggested_params()
     txid = node_algod.send_transaction(
         PaymentTxn(SENDER_ADDR, sp, accepted_msig.address(), 10_000_000).sign(
@@ -114,7 +92,7 @@ async def setup_channel(websocket) -> Tuple[Multisig, LogicSigAccount]:
     )
     wait_for_confirmation(node_algod, txid)
 
-    return accepted_msig, accepted_lsig
+    return accepted_msig, accepted_refund_lsig
 
 
 async def pay(websocket, msig, lsig):
