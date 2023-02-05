@@ -90,14 +90,14 @@ async def setup_channel(websocket):
     #  Instead, the sandbox correctly refuses to process a transaction with lsig where
     #  the lsig was not signed by the msig.
     proposed_refund_lsig.sign_multisig(proposed_msig, RECIPIENT_PRIVATE_KEY)
-    recipient_refund_lsig_signature = proposed_refund_lsig.lsig.msig.subsigs[1].signature
+    refund_lsig_signature = proposed_refund_lsig.lsig.msig.subsigs[1].signature
 
     # Recipient accepts this channel.
     OPEN_CHANNELS.add(proposed_msig.address())
     await websocket.send(
         setupResponse(
             recipient=RECIPIENT_ADDR,
-            lsigSignature=recipient_refund_lsig_signature,
+            lsigSignature=refund_lsig_signature,
         ).SerializeToString()
     )
     # At this point, the recipient does not own a correctly signed lsig because it's missing sender's signature.
