@@ -27,20 +27,15 @@ SENDER_PRIVATE_KEY = to_private_key(SENDER_PRIVATE_KEY_MNEMONIC)
 SENDER_ADDR = address_from_private_key(SENDER_PRIVATE_KEY)
 
 
-NONCE = 1024
-MIN_REFUND_BLOCK = 10_000
-MAX_REFUND_BLOCK = 11_000
-
-
-async def setup_channel(websocket):
+async def setup_channel(websocket, nonce: int, min_refund_block: int, max_refund_block: int):
     node_algod = get_sandbox_algod()
 
     await websocket.send(
         setupProposal(
             sender=SENDER_ADDR,
-            nonce=NONCE,
-            minRefundBlock=MIN_REFUND_BLOCK,
-            maxRefundBlock=MAX_REFUND_BLOCK,
+            nonce=nonce,
+            minRefundBlock=min_refund_block,
+            maxRefundBlock=max_refund_block,
         ).SerializeToString()
     )
 
@@ -53,12 +48,12 @@ async def setup_channel(websocket):
 
     # Compiling msig template on the sender side.
     accepted_msig = smc_msig(
-        SENDER_ADDR, setup_response.recipient, NONCE, MIN_REFUND_BLOCK, MAX_REFUND_BLOCK
+        SENDER_ADDR, setup_response.recipient, nonce, min_refund_block, max_refund_block
     )
     logging.info(f"{accepted_msig.address() = }")
     # Compiling lsig template on the sender side.
     accepted_refund_lsig = smc_lsig_refund(
-        SENDER_ADDR, MIN_REFUND_BLOCK, MAX_REFUND_BLOCK
+        SENDER_ADDR, min_refund_block, max_refund_block
     )
 
     # Merging signatures for the lsig
@@ -85,15 +80,15 @@ async def setup_channel(websocket):
     wait_for_confirmation(node_algod, txid)
 
 
-async def pay(websocket):
+async def pay(websocket, amount: int):
     logging.info("pay")
 
 
 async def honest_sender():
     async with websockets.connect("ws://localhost:55000") as websocket:
-        await setup_channel(websocket)
+        await setup_channel(websocket, 1024, 10_000, 10_500)
         await sleep(3.0)
-        await pay(websocket)
+        await pay(websocket, 1_000_000)
 
 
 if __name__ == "__main__":
