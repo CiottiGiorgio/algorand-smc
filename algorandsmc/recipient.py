@@ -4,16 +4,19 @@ File that implements all things related to the recipient side of an SMC.
 import asyncio
 import logging
 from asyncio import Lock, wait_for, TimeoutError
+from typing import Tuple
 
 import websockets
 from algosdk.account import address_from_private_key
 from algosdk.encoding import is_valid_address
 from algosdk.mnemonic import to_private_key
+from algosdk.transaction import Multisig
 from websockets.exceptions import ConnectionClosed
 
 # pylint: disable-next=no-name-in-module
 from algorandsmc.smc_pb2 import setupProposal, setupResponse, SMCMethod, Payment
 from algorandsmc.templates import smc_lsig_refund, smc_msig
+from algorandsmc.templates.lsig import smc_lsig_pay
 from algorandsmc.utils import get_sandbox_algod
 
 logging.root.setLevel(logging.INFO)
@@ -40,7 +43,7 @@ OPEN_CHANNELS = set()
 OC_LOCK = Lock()
 
 
-async def setup_channel(websocket):
+async def setup_channel(websocket) -> Tuple[setupProposal, Multisig]:
     node_algod = get_sandbox_algod()
 
     setup_proposal: setupProposal = setupProposal.FromString(await websocket.recv())
@@ -108,11 +111,13 @@ async def setup_channel(websocket):
     )
     # At this point, the recipient does not own a correctly signed lsig because it's missing sender's signature.
 
-    return setup_proposal.minRefundBlock
+    return setup_proposal, proposed_msig
 
 
 async def receive_payment(websocket):
-    logging.info(Payment.FromString(await websocket.recv()))
+    proposed_payment = Payment.FromString(await websocket.recv())
+
+    # proposed_payment_lsig = smc_lsig_pay()
 
 
 async def settle():
@@ -124,7 +129,7 @@ async def recipient(websocket):
     method = SMCMethod.FromString(await websocket.recv())
     if not method.method == SMCMethod.SETUP_CHANNEL:
         raise ValueError("Expected channel setup method.")
-    min_refund_block = await setup_channel(websocket)
+    setup_proposal, accepted_msig = await setup_channel(websocket)
 
     # The recipient wants to keep accepting payments but also monitor the lifetime of this
     # channel to settle it before the refund condition comes online.
@@ -145,7 +150,7 @@ async def recipient(websocket):
 
         chain_status = node_algod.status()
         # We want to have at least 10 blocks before sending the highest paying transaction.
-        if chain_status["last-round"] >= min_refund_block - 10:
+        if chain_status["last-round"] >= setup_proposal.minRefundBlock - 10:
             break
 
     await settle()

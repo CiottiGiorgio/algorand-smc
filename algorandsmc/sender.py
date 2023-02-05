@@ -31,7 +31,7 @@ SENDER_ADDR = address_from_private_key(SENDER_PRIVATE_KEY)
 
 async def setup_channel(
     websocket, nonce: int, min_refund_block: int, max_refund_block: int
-) -> Tuple[Multisig, str]:
+) -> Tuple[setupResponse, Multisig]:
     node_algod = get_sandbox_algod()
 
     await websocket.send(
@@ -86,7 +86,7 @@ async def setup_channel(
     )
     wait_for_confirmation(node_algod, txid)
 
-    return accepted_msig, setup_response.recipient
+    return setup_response, accepted_msig
 
 
 async def pay(
@@ -109,13 +109,15 @@ async def pay(
 
 
 async def honest_sender():
+    nonce = 1024
     min_block_refund, max_block_refund = 10_000, 10_500
+
     async with websockets.connect("ws://localhost:55000") as websocket:
-        msig, recipient = await setup_channel(
-            websocket, 1024, min_block_refund, max_block_refund
+        setup_response, accepted_msig = await setup_channel(
+            websocket, nonce, min_block_refund, max_block_refund
         )
         await sleep(3.0)
-        await pay(websocket, recipient, 1_000_000, msig, min_block_refund)
+        await pay(websocket, setup_response.recipient, 1_000_000, accepted_msig, min_block_refund)
 
 
 if __name__ == "__main__":
