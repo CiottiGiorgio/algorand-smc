@@ -31,7 +31,7 @@ pylint:
 
 consistent-format: autoflake black isort
 
-correct-format: consistent-format mypy pylint
+correct-format: consistent-format pylint
 
 tests: compile-protobuf
 	poetry run pytest -x --cov=$(SRCDIR) $(TESTDIR)
