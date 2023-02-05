@@ -3,6 +3,7 @@ File that implements all things related to the sender side of an SMC.
 """
 import asyncio
 import logging
+from asyncio import sleep, Future
 from typing import Tuple
 
 import websockets
@@ -17,7 +18,7 @@ from algosdk.transaction import (
 )
 
 # pylint: disable-next=no-name-in-module
-from algorandsmc.smc_pb2 import SMCMethod, setupProposal, setupResponse
+from algorandsmc.smc_pb2 import setupProposal, setupResponse
 from algorandsmc.templates import smc_lsig_refund, smc_msig
 from algorandsmc.utils import get_sandbox_algod
 
@@ -37,12 +38,9 @@ MIN_REFUND_BLOCK = 10_000
 MAX_REFUND_BLOCK = 11_000
 
 
-async def setup_channel(websocket) -> Tuple[Multisig, LogicSigAccount]:
+async def setup_channel(websocket):
     node_algod = get_sandbox_algod()
 
-    await websocket.send(
-        SMCMethod(method=SMCMethod.MethodEnum.SETUP_CHANNEL).SerializeToString()
-    )
     await websocket.send(
         setupProposal(
             sender=SENDER_ADDR,
@@ -92,18 +90,19 @@ async def setup_channel(websocket) -> Tuple[Multisig, LogicSigAccount]:
     )
     wait_for_confirmation(node_algod, txid)
 
-    return accepted_msig, accepted_refund_lsig
 
-
-async def pay(websocket, msig, lsig):
+async def pay(websocket):
     logging.info("pay")
 
 
-async def main():
+async def honest_sender():
     async with websockets.connect("ws://localhost:55000") as websocket:
-        msig, lsig = await setup_channel(websocket)
-        await pay(websocket, msig, lsig)
+        await setup_channel(websocket)
+        while True:
+            await sleep(10.0)
+        # await sleep(3)
+        # await pay(websocket)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(honest_sender())
