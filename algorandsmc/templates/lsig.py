@@ -58,7 +58,7 @@ def smc_lsig_refund(
 
 
 def smc_lsig_pay(
-    sender: str, recipient: str, amount: int, min_block_refund: int
+    sender: str, recipient: str, cumulative_amount: int, min_block_refund: int
 ) -> LogicSigAccount:
     # Sandbox node
     node_algod = get_sandbox_algod()
@@ -68,7 +68,7 @@ def smc_lsig_pay(
     lsig_pyteal = Seq(
         Assert(
             Txn.type_enum() == TxnType.Payment,
-            Txn.amount() == Int(amount),
+            Txn.amount() == Int(cumulative_amount),
             Txn.fee() == Global.min_txn_fee(),
             Txn.receiver() == Bytes(decode_address(recipient)),
             Txn.close_remainder_to() == Bytes(decode_address(sender)),

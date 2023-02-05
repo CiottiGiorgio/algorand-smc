@@ -3,18 +3,17 @@ File that implements all things related to the recipient side of an SMC.
 """
 import asyncio
 import logging
-from asyncio import Lock, wait_for, TimeoutError
-from typing import Tuple
+from asyncio import Lock, TimeoutError, wait_for
 
 import websockets
 from algosdk.account import address_from_private_key
 from algosdk.encoding import is_valid_address
 from algosdk.mnemonic import to_private_key
-from algosdk.transaction import Multisig
 from websockets.exceptions import ConnectionClosed
 
+from algorandsmc.sender import SENDER_PRIVATE_KEY
 # pylint: disable-next=no-name-in-module
-from algorandsmc.smc_pb2 import setupProposal, setupResponse, SMCMethod, Payment
+from algorandsmc.smc_pb2 import Payment, SMCMethod, setupProposal, setupResponse
 from algorandsmc.templates import smc_lsig_refund, smc_msig
 from algorandsmc.templates.lsig import smc_lsig_pay
 from algorandsmc.utils import get_sandbox_algod
@@ -43,7 +42,7 @@ OPEN_CHANNELS = set()
 OC_LOCK = Lock()
 
 
-async def setup_channel(websocket) -> Tuple[setupProposal, Multisig]:
+async def setup_channel(websocket) -> setupProposal:
     node_algod = get_sandbox_algod()
 
     setup_proposal: setupProposal = setupProposal.FromString(await websocket.recv())
@@ -111,13 +110,37 @@ async def setup_channel(websocket) -> Tuple[setupProposal, Multisig]:
     )
     # At this point, the recipient does not own a correctly signed lsig because it's missing sender's signature.
 
-    return setup_proposal, proposed_msig
+    return setup_proposal
 
 
-async def receive_payment(websocket):
+async def receive_payment(websocket, accepted_setup: setupProposal):
+    get_sandbox_algod()
+
     proposed_payment = Payment.FromString(await websocket.recv())
 
-    # proposed_payment_lsig = smc_lsig_pay()
+    logging.info(f"{proposed_payment = }")
+
+    derived_msig = smc_msig(
+        accepted_setup.sender,
+        RECIPIENT_ADDR,
+        accepted_setup.nonce,
+        accepted_setup.minRefundBlock,
+        accepted_setup.maxRefundBlock,
+    )
+    proposed_payment_lsig = smc_lsig_pay(
+        accepted_setup.sender,
+        RECIPIENT_ADDR,
+        proposed_payment.cumulativeAmount,
+        accepted_setup.minRefundBlock,
+    )
+    proposed_payment_lsig.sign_multisig(derived_msig, RECIPIENT_PRIVATE_KEY)
+    proposed_payment_lsig.lsig.msig.subsigs[
+        0
+    ].signature = proposed_payment.lsigSignature
+    if not proposed_payment_lsig.verify():
+        raise ValueError("Sender multisig subsig of the payment lsig is not valid.")
+
+    logging.info(f"{proposed_payment_lsig.verify() = }")
 
 
 async def settle():
@@ -129,7 +152,7 @@ async def recipient(websocket):
     method = SMCMethod.FromString(await websocket.recv())
     if not method.method == SMCMethod.SETUP_CHANNEL:
         raise ValueError("Expected channel setup method.")
-    setup_proposal, accepted_msig = await setup_channel(websocket)
+    accepted_setup = await setup_channel(websocket)
 
     # The recipient wants to keep accepting payments but also monitor the lifetime of this
     # channel to settle it before the refund condition comes online.
@@ -146,11 +169,11 @@ async def recipient(websocket):
             method = SMCMethod.FromString(method_message)
             if not method.method == SMCMethod.PAY:
                 raise ValueError("Expected payment method.")
-            await receive_payment(websocket)
+            await receive_payment(websocket, accepted_setup)
 
         chain_status = node_algod.status()
         # We want to have at least 10 blocks before sending the highest paying transaction.
-        if chain_status["last-round"] >= setup_proposal.minRefundBlock - 10:
+        if chain_status["last-round"] >= accepted_setup.minRefundBlock - 10:
             break
 
     await settle()
