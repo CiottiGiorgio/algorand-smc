@@ -20,7 +20,7 @@ message setupResponse {
   bytes lsigSignature = 2;
 }
 
-message PaymentTx {
+message Payment {
   uint64 cumulativeAmount = 1;
-  bytes txSignature = 2;
+  bytes lsigSignature = 2;
 }
