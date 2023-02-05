@@ -11,10 +11,8 @@ from algosdk.encoding import is_valid_address
 from algosdk.mnemonic import to_private_key
 from algosdk.transaction import (
     LogicSigAccount,
-    LogicSigTransaction,
     Multisig,
     PaymentTxn,
-    create_dryrun,
     wait_for_confirmation,
 )
 
@@ -67,7 +65,9 @@ async def setup_channel(websocket) -> Tuple[Multisig, LogicSigAccount]:
     )
     logging.info(f"{accepted_msig.address() = }")
     # Compiling lsig template on the sender side.
-    accepted_refund_lsig = smc_lsig_refund(SENDER_ADDR, MIN_REFUND_BLOCK, MAX_REFUND_BLOCK)
+    accepted_refund_lsig = smc_lsig_refund(
+        SENDER_ADDR, MIN_REFUND_BLOCK, MAX_REFUND_BLOCK
+    )
 
     # Merging signatures for the lsig
     accepted_refund_lsig.sign_multisig(accepted_msig, SENDER_PRIVATE_KEY)
