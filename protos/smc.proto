@@ -1,5 +1,13 @@
 syntax = "proto3";
 
+message SMCMethod {
+  enum MethodEnum {
+    SETUP_CHANNEL = 0;
+    PAY = 1;
+  }
+  MethodEnum method = 1;
+}
+
 message setupProposal {
   string sender = 1;
   uint64 nonce = 2;

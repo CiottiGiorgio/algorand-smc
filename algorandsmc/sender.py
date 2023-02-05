@@ -4,16 +4,18 @@ File that implements all things related to the sender side of an SMC.
 import asyncio
 import logging
 from asyncio import sleep
+from typing import Tuple
 
 import websockets
 from algosdk.account import address_from_private_key
 from algosdk.encoding import is_valid_address
 from algosdk.mnemonic import to_private_key
-from algosdk.transaction import PaymentTxn, wait_for_confirmation
+from algosdk.transaction import Multisig, PaymentTxn, wait_for_confirmation
 
 # pylint: disable-next=no-name-in-module
-from algorandsmc.smc_pb2 import setupProposal, setupResponse
+from algorandsmc.smc_pb2 import Payment, setupProposal, setupResponse, SMCMethod
 from algorandsmc.templates import smc_lsig_refund, smc_msig
+from algorandsmc.templates.lsig import smc_lsig_pay
 from algorandsmc.utils import get_sandbox_algod
 
 logging.root.setLevel(logging.INFO)
@@ -27,9 +29,14 @@ SENDER_PRIVATE_KEY = to_private_key(SENDER_PRIVATE_KEY_MNEMONIC)
 SENDER_ADDR = address_from_private_key(SENDER_PRIVATE_KEY)
 
 
-async def setup_channel(websocket, nonce: int, min_refund_block: int, max_refund_block: int):
+async def setup_channel(
+    websocket, nonce: int, min_refund_block: int, max_refund_block: int
+) -> Tuple[Multisig, str]:
     node_algod = get_sandbox_algod()
 
+    await websocket.send(
+        SMCMethod(method=SMCMethod.MethodEnum.SETUP_CHANNEL).SerializeToString()
+    )
     await websocket.send(
         setupProposal(
             sender=SENDER_ADDR,
@@ -79,16 +86,36 @@ async def setup_channel(websocket, nonce: int, min_refund_block: int, max_refund
     )
     wait_for_confirmation(node_algod, txid)
 
+    return accepted_msig, setup_response.recipient
 
-async def pay(websocket, amount: int):
-    logging.info("pay")
+
+async def pay(
+    websocket, recipient: str, amount: int, msig: Multisig, min_block_refund: int
+):
+    await websocket.send(
+        SMCMethod(method=SMCMethod.MethodEnum.PAY).SerializeToString()
+    )
+
+    payment_lsig_proposal = smc_lsig_pay(
+        SENDER_ADDR, recipient, amount, min_block_refund
+    )
+    payment_lsig_proposal.sign_multisig(msig, SENDER_PRIVATE_KEY)
+    await websocket.send(
+        Payment(
+            cumulativeAmount=1_000,
+            lsigSignature=payment_lsig_proposal.lsig.msig.subsigs[0].signature,
+        ).SerializeToString()
+    )
 
 
 async def honest_sender():
+    min_block_refund, max_block_refund = 10_000, 10_500
     async with websockets.connect("ws://localhost:55000") as websocket:
-        await setup_channel(websocket, 1024, 10_000, 10_500)
+        msig, recipient = await setup_channel(
+            websocket, 1024, min_block_refund, max_block_refund
+        )
         await sleep(3.0)
-        await pay(websocket, 1_000_000)
+        await pay(websocket, recipient, 1_000_000, msig, min_block_refund)
 
 
 if __name__ == "__main__":

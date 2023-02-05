@@ -3,7 +3,7 @@ File that implements all things related to the recipient side of an SMC.
 """
 import asyncio
 import logging
-from asyncio import wait_for, Lock
+from asyncio import Lock, wait_for, TimeoutError
 
 import websockets
 from algosdk.account import address_from_private_key
@@ -12,7 +12,7 @@ from algosdk.mnemonic import to_private_key
 from websockets.exceptions import ConnectionClosed
 
 # pylint: disable-next=no-name-in-module
-from algorandsmc.smc_pb2 import setupProposal, setupResponse
+from algorandsmc.smc_pb2 import setupProposal, setupResponse, SMCMethod, Payment
 from algorandsmc.templates import smc_lsig_refund, smc_msig
 from algorandsmc.utils import get_sandbox_algod
 
@@ -112,7 +112,7 @@ async def setup_channel(websocket):
 
 
 async def receive_payment(websocket):
-    ...
+    logging.info(Payment.FromString(await websocket.recv()))
 
 
 async def settle():
@@ -121,19 +121,27 @@ async def settle():
 
 async def recipient(websocket):
     node_algod = get_sandbox_algod()
+    method = SMCMethod.FromString(await websocket.recv())
+    if not method.method == SMCMethod.SETUP_CHANNEL:
+        raise ValueError("Expected channel setup method.")
     min_refund_block = await setup_channel(websocket)
 
     # The recipient wants to keep accepting payments but also monitor the lifetime of this
     # channel to settle it before the refund condition comes online.
     while True:
         try:
-            await wait_for(receive_payment(websocket), 2.0)
+            method_message = await wait_for(websocket.recv(), 2.0)
         except TimeoutError:
             # No new payments last time we waited.
             pass
         except ConnectionClosed:
             # Sender has closed websocket.
             break
+        else:
+            method = SMCMethod.FromString(method_message)
+            if not method.method == SMCMethod.PAY:
+                raise ValueError("Expected payment method.")
+            await receive_payment(websocket)
 
         chain_status = node_algod.status()
         # We want to have at least 10 blocks before sending the highest paying transaction.
@@ -144,7 +152,7 @@ async def recipient(websocket):
 
 
 async def main():
-    async with websockets.serve(recipient, "localhost", 55000):
+    async with websockets.serve(recipient, "localhost", 55_000):
         await asyncio.Future()
 
 
