@@ -3,7 +3,7 @@ File that implements all things related to the recipient side of an SMC.
 """
 import asyncio
 import logging
-from asyncio import wait_for
+from asyncio import wait_for, Lock
 
 import websockets
 from algosdk.account import address_from_private_key
@@ -37,6 +37,7 @@ MIN_ACCEPTED_LIFETIME = 2_000
 
 
 OPEN_CHANNELS = set()
+OC_LOCK = Lock()
 
 
 async def setup_channel(websocket):
@@ -72,8 +73,9 @@ async def setup_channel(websocket):
         setup_proposal.maxRefundBlock,
     )
     logging.info(f"{proposed_msig.address() = }")
-    if proposed_msig.address() in OPEN_CHANNELS:
-        raise ValueError("This channel is already open.")
+    async with OC_LOCK:
+        if proposed_msig.address() in OPEN_CHANNELS:
+            raise ValueError("This channel is already open.")
 
     # Compiling lsig template on the recipient side.
     proposed_refund_lsig = smc_lsig_refund(
@@ -95,7 +97,8 @@ async def setup_channel(websocket):
     refund_lsig_signature = proposed_refund_lsig.lsig.msig.subsigs[1].signature
 
     # Recipient accepts this channel.
-    OPEN_CHANNELS.add(proposed_msig.address())
+    async with OC_LOCK:
+        OPEN_CHANNELS.add(proposed_msig.address())
     logging.info("Channel accepted.")
     await websocket.send(
         setupResponse(
