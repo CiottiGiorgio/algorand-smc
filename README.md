@@ -65,10 +65,10 @@ the parameters of the setup are reasonable.
 She validates that Bob's signature of lsig is valid and that the setup proposal has been
 accepted.
 
-Once this setup is completed, Alice can just pay Bob by signing her part of payment transaction from the msig to Bob.
-Close out field is used in each payment transaction to make sure that Alice gets back
+Once this setup is completed, Alice can just pay Bob by signing her part of a lsig that allows Bob, some time in the future, to submit a payment w/ closeout from msig to Bob.
+Close out field is used in the payment transaction to make sure that Alice gets back
 whatever is left in the channel when Bob closes it.
-Bob can accept these transactions and, at some point, sign the highest value transaction, send it to the network and close the channel.
+Bob can accept these lsigs and, at some point, sign the highest value transaction, send it to the network and close the channel.
 Bob should always verify in the Layer-1 that the cumulative amount that he has received,
 is at most the current balance of the msig address.
 

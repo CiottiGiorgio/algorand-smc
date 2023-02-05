@@ -3,19 +3,13 @@ File that implements all things related to the sender side of an SMC.
 """
 import asyncio
 import logging
-from asyncio import sleep, Future
-from typing import Tuple
+from asyncio import sleep
 
 import websockets
 from algosdk.account import address_from_private_key
 from algosdk.encoding import is_valid_address
 from algosdk.mnemonic import to_private_key
-from algosdk.transaction import (
-    LogicSigAccount,
-    Multisig,
-    PaymentTxn,
-    wait_for_confirmation,
-)
+from algosdk.transaction import PaymentTxn, wait_for_confirmation
 
 # pylint: disable-next=no-name-in-module
 from algorandsmc.smc_pb2 import setupProposal, setupResponse
@@ -98,10 +92,8 @@ async def pay(websocket):
 async def honest_sender():
     async with websockets.connect("ws://localhost:55000") as websocket:
         await setup_channel(websocket)
-        while True:
-            await sleep(10.0)
-        # await sleep(3)
-        # await pay(websocket)
+        await sleep(3.0)
+        await pay(websocket)
 
 
 if __name__ == "__main__":
