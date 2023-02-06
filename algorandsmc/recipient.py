@@ -12,11 +12,7 @@ import websockets
 from algosdk.account import address_from_private_key
 from algosdk.encoding import is_valid_address
 from algosdk.mnemonic import to_private_key
-from algosdk.transaction import (
-    LogicSigAccount,
-    LogicSigTransaction,
-    wait_for_confirmation,
-)
+from algosdk.transaction import LogicSigTransaction, wait_for_confirmation
 from websockets.exceptions import ConnectionClosed
 
 # pylint: disable-next=no-name-in-module
@@ -187,11 +183,19 @@ async def settle(accepted_setup: setupProposal, last_payment: Payment) -> None:
         accepted_setup.minRefundBlock,
         accepted_setup.maxRefundBlock,
     )
-    derived_pay_lsig = smc_lsig_pay(accepted_setup.sender, RECIPIENT_ADDR, last_payment.cumulativeAmount, accepted_setup.minRefundBlock)
+    derived_pay_lsig = smc_lsig_pay(
+        accepted_setup.sender,
+        RECIPIENT_ADDR,
+        last_payment.cumulativeAmount,
+        accepted_setup.minRefundBlock,
+    )
     derived_pay_lsig.sign_multisig(derived_msig, RECIPIENT_PRIVATE_KEY)
     derived_pay_lsig.lsig.msig.subsigs[0].signature = last_payment.lsigSignature
     pay_txn = smc_txn_pay(
-        derived_msig.address(), accepted_setup.sender, RECIPIENT_ADDR, last_payment.cumulativeAmount
+        derived_msig.address(),
+        accepted_setup.sender,
+        RECIPIENT_ADDR,
+        last_payment.cumulativeAmount,
     )
 
     assert pay_txn.fee <= 1_000_000
@@ -244,12 +248,15 @@ async def recipient(websocket) -> None:
                 break
             try:
                 payment = await receive_payment(websocket, accepted_setup)
-            except ValueError as e:
+            except ValueError as err:
                 # Sender misbehaved.
-                logging.error("Bad payment. Error = %s", e)
+                logging.error("Bad payment. Error = %s", err)
                 break
             else:
-                if last_payment and not payment.cumulativeAmount > last_payment.cumulativeAmount:
+                if (
+                    last_payment
+                    and not payment.cumulativeAmount > last_payment.cumulativeAmount
+                ):
                     # Sender misbehaved.
                     logging.error("Expected increasing payments.")
                     break
