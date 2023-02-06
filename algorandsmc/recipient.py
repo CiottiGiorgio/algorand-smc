@@ -11,7 +11,6 @@ from algosdk.encoding import is_valid_address
 from algosdk.mnemonic import to_private_key
 from websockets.exceptions import ConnectionClosed
 
-from algorandsmc.sender import SENDER_PRIVATE_KEY
 # pylint: disable-next=no-name-in-module
 from algorandsmc.smc_pb2 import Payment, SMCMethod, setupProposal, setupResponse
 from algorandsmc.templates import smc_lsig_refund, smc_msig
@@ -116,9 +115,9 @@ async def setup_channel(websocket) -> setupProposal:
 async def receive_payment(websocket, accepted_setup: setupProposal):
     get_sandbox_algod()
 
-    proposed_payment = Payment.FromString(await websocket.recv())
+    payment_proposal = Payment.FromString(await websocket.recv())
 
-    logging.info(f"{proposed_payment = }")
+    logging.info(f"{payment_proposal = }")
 
     derived_msig = smc_msig(
         accepted_setup.sender,
@@ -127,20 +126,18 @@ async def receive_payment(websocket, accepted_setup: setupProposal):
         accepted_setup.minRefundBlock,
         accepted_setup.maxRefundBlock,
     )
-    proposed_payment_lsig = smc_lsig_pay(
+    payment_lsig = smc_lsig_pay(
         accepted_setup.sender,
         RECIPIENT_ADDR,
-        proposed_payment.cumulativeAmount,
+        payment_proposal.cumulativeAmount,
         accepted_setup.minRefundBlock,
     )
-    proposed_payment_lsig.sign_multisig(derived_msig, RECIPIENT_PRIVATE_KEY)
-    proposed_payment_lsig.lsig.msig.subsigs[
-        0
-    ].signature = proposed_payment.lsigSignature
-    if not proposed_payment_lsig.verify():
+    payment_lsig.sign_multisig(derived_msig, RECIPIENT_PRIVATE_KEY)
+    payment_lsig.lsig.msig.subsigs[0].signature = payment_proposal.lsigSignature
+    if not payment_lsig.verify():
         raise ValueError("Sender multisig subsig of the payment lsig is not valid.")
 
-    logging.info(f"{proposed_payment_lsig.verify() = }")
+    logging.info(f"{payment_lsig.verify() = }")
 
 
 async def settle():
