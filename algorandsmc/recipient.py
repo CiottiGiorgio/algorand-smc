@@ -161,12 +161,9 @@ async def receive_payment(websocket, accepted_setup: setupProposal) -> Payment:
     if not payment_lsig.verify():
         raise ValueError("Sender multisig subsig of the payment lsig is not valid.")
 
-    logging.info("payment_lsig.verify() = %s", payment_lsig.verify())
-
     msig_balance = node_indexer.account_info(derived_msig.address())["account"][
         "amount-without-pending-rewards"
     ]
-    logging.info("%d", msig_balance)
     # We are ignoring fees for the moment.
     if msig_balance < payment_proposal.cumulativeAmount:
         raise ValueError("Balance of msig cannot cover this payment.")
@@ -205,6 +202,7 @@ async def settle(accepted_setup: setupProposal, last_payment: Payment) -> None:
     wait_for_confirmation(node_algod, txid)
 
     logging.info("Settlement executed")
+    logging.info("TxID = %s", txid)
 
 
 async def recipient(websocket) -> None:
@@ -248,13 +246,14 @@ async def recipient(websocket) -> None:
                 payment = await receive_payment(websocket, accepted_setup)
             except ValueError as e:
                 # Sender misbehaved.
-                logging.error("%s", e)
+                logging.error("Bad payment. Error = %s", e)
                 break
             else:
                 if last_payment and not payment.cumulativeAmount > last_payment.cumulativeAmount:
                     # Sender misbehaved.
                     logging.error("Expected increasing payments.")
                     break
+                logging.info("Payment accepted.")
                 last_payment = payment
 
         chain_status = node_algod.status()
@@ -268,6 +267,8 @@ async def recipient(websocket) -> None:
 
 async def main():
     """Entry point for the async flow"""
+    logging.info("recipient: %s", RECIPIENT_ADDR)
+
     # pylint: disable-next=no-member
     async with websockets.serve(recipient, "localhost", 55_000):
         await asyncio.Future()

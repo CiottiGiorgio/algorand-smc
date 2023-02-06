@@ -70,7 +70,7 @@ async def setup_channel(websocket, setup_proposal: setupProposal) -> setupRespon
         # Least incomprehensible sentence in this code.
         raise ValueError("Recipient multisig subsig of the refund lsig is not valid.")
 
-    logging.info("accepted_refund_lsig.verify() = %s", accepted_refund_lsig.verify())
+    logging.info("Channel accepted.")
 
     # This last step is not technically required from the sender at this point in time.
     # However, for sake of simplicity, we choose to fund the msig right now.
@@ -85,6 +85,8 @@ async def setup_channel(websocket, setup_proposal: setupProposal) -> setupRespon
         )
     )
     wait_for_confirmation(node_algod, txid)
+
+    logging.info("Funding TxID = %s", txid)
 
     return setup_response
 
@@ -126,6 +128,8 @@ async def pay(
         ).SerializeToString()
     )
 
+    logging.info("Payment accepted.")
+
 
 async def honest_sender() -> None:
     """Demo of an honest sender"""
@@ -140,10 +144,12 @@ async def honest_sender() -> None:
         await pay(websocket, setup_proposal, setup_response, 1_000_000)
         # FIXME: This is a hack to keep the channel alive.
         #  Substitute for something that expires when the refund condition comes online.
+        await sleep(2.0)
+        await pay(websocket, setup_proposal, setup_response, 2_000_000)
         await sleep(500.0)
-        # await sleep(2.0)
-        # await pay(websocket, setup_response.recipient, 2_000_000, accepted_msig, min_block_refund)
 
 
 if __name__ == "__main__":
+    logging.info("sender: %s", SENDER_ADDR)
+
     asyncio.run(honest_sender())
