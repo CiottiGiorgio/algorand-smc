@@ -142,11 +142,9 @@ async def honest_sender() -> None:
         setup_response = await setup_channel(websocket, setup_proposal)
         await sleep(1.0)
         await pay(websocket, setup_proposal, setup_response, 1_000_000)
-        # FIXME: This is a hack to keep the channel alive.
-        #  Substitute for something that expires when the refund condition comes online.
         await sleep(2.0)
         await pay(websocket, setup_proposal, setup_response, 2_000_000)
-        await sleep(500.0)
+        await sleep(0.5)
 
 
 if __name__ == "__main__":
