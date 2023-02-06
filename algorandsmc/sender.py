@@ -91,9 +91,9 @@ async def setup_channel(websocket, setup_proposal: setupProposal) -> setupRespon
 
 async def pay(
     websocket,
+    setup_proposal: setupProposal,
     setup_response: setupResponse,
     cumulative_amount: int,
-    setup_proposal: setupProposal,
 ):
     """
     Handles the protocol for sending a payment.
@@ -138,7 +138,7 @@ async def honest_sender() -> None:
     async with websockets.connect("ws://localhost:55000") as websocket:
         setup_response = await setup_channel(websocket, setup_proposal)
         await sleep(1.0)
-        await pay(websocket, setup_response, 1_000_000, setup_proposal)
+        await pay(websocket, setup_proposal, setup_response, 1_000_000)
         # FIXME: This is a hack to keep the channel alive.
         #  Substitute for something that expires when the refund condition comes online.
         await sleep(500.0)
