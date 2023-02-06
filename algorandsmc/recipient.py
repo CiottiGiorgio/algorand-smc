@@ -241,13 +241,20 @@ async def recipient(websocket) -> None:
         else:
             method = SMCMethod.FromString(method_message)
             if not method.method == SMCMethod.PAY:
-                raise ValueError("Expected payment method.")
+                # Sender misbehaved.
+                logging.error("Expected payment method.")
+                break
             try:
                 payment = await receive_payment(websocket, accepted_setup)
-            except ValueError:
+            except ValueError as e:
                 # Sender misbehaved.
+                logging.error("%s", e)
                 break
             else:
+                if last_payment and not payment.cumulativeAmount > last_payment.cumulativeAmount:
+                    # Sender misbehaved.
+                    logging.error("Expected increasing payments.")
+                    break
                 last_payment = payment
 
         chain_status = node_algod.status()
