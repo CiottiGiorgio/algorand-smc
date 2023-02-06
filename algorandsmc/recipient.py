@@ -6,17 +6,23 @@ import logging
 from asyncio import Lock
 from asyncio import TimeoutError as AsyncTimeoutError
 from asyncio import wait_for
+from typing import Optional
 
 import websockets
 from algosdk.account import address_from_private_key
 from algosdk.encoding import is_valid_address
 from algosdk.mnemonic import to_private_key
+from algosdk.transaction import (
+    LogicSigAccount,
+    LogicSigTransaction,
+    wait_for_confirmation,
+)
 from websockets.exceptions import ConnectionClosed
 
 # pylint: disable-next=no-name-in-module
 from algorandsmc.smc_pb2 import Payment, SMCMethod, setupProposal, setupResponse
-from algorandsmc.templates import smc_lsig_pay, smc_lsig_refund, smc_msig
-from algorandsmc.utils import get_sandbox_algod
+from algorandsmc.templates import smc_lsig_pay, smc_lsig_refund, smc_msig, smc_txn_pay
+from algorandsmc.utils import get_sandbox_algod, get_sandbox_indexer
 
 logging.root.setLevel(logging.INFO)
 
@@ -121,15 +127,15 @@ async def setup_channel(websocket) -> setupProposal:
     return setup_proposal
 
 
-async def receive_payment(websocket, accepted_setup: setupProposal):
+async def receive_payment(websocket, accepted_setup: setupProposal) -> Payment:
     """
     Handles the protocol for receiving a payment.
 
     :param websocket:
     :param accepted_setup: Sender's side of arguments for this channel
-    :return: TODO: TBD
+    :return: lsig that allows recipient to settle a payment signed from both parties.
     """
-    get_sandbox_algod()
+    node_indexer = get_sandbox_indexer()
 
     payment_proposal = Payment.FromString(await websocket.recv())
 
@@ -148,6 +154,8 @@ async def receive_payment(websocket, accepted_setup: setupProposal):
         payment_proposal.cumulativeAmount,
         accepted_setup.minRefundBlock,
     )
+    # FIXME: This should only verify that the sender's signature is valid. Not both together.
+    #  Recipient can always correctly sign any lsig.
     payment_lsig.sign_multisig(derived_msig, RECIPIENT_PRIVATE_KEY)
     payment_lsig.lsig.msig.subsigs[0].signature = payment_proposal.lsigSignature
     if not payment_lsig.verify():
@@ -155,12 +163,48 @@ async def receive_payment(websocket, accepted_setup: setupProposal):
 
     logging.info("payment_lsig.verify() = %s", payment_lsig.verify())
 
-    # TODO: Check Layer-1 msig balance to verify that we can accept this payment.
+    msig_balance = node_indexer.account_info(derived_msig.address())["account"][
+        "amount-without-pending-rewards"
+    ]
+    logging.info("%d", msig_balance)
+    # We are ignoring fees for the moment.
+    if msig_balance < payment_proposal.cumulativeAmount:
+        raise ValueError("Balance of msig cannot cover this payment.")
+
+    return payment_proposal
 
 
-async def settle():
-    # TODO: Generate docstring once signature is defined.
-    ...
+async def settle(accepted_setup: setupProposal, last_payment: Payment) -> None:
+    """
+    Compiles and submits payment transaction to the Layer-1
+
+    :param accepted_setup: Sender's side of arguments for this channel
+    :param last_payment: Last accepted Payment
+    """
+    node_algod = get_sandbox_algod()
+
+    derived_msig = smc_msig(
+        accepted_setup.sender,
+        RECIPIENT_ADDR,
+        accepted_setup.nonce,
+        accepted_setup.minRefundBlock,
+        accepted_setup.maxRefundBlock,
+    )
+    derived_pay_lsig = smc_lsig_pay(accepted_setup.sender, RECIPIENT_ADDR, last_payment.cumulativeAmount, accepted_setup.minRefundBlock)
+    derived_pay_lsig.sign_multisig(derived_msig, RECIPIENT_PRIVATE_KEY)
+    derived_pay_lsig.lsig.msig.subsigs[0].signature = last_payment.lsigSignature
+    pay_txn = smc_txn_pay(
+        derived_msig.address(), accepted_setup.sender, RECIPIENT_ADDR, last_payment.cumulativeAmount
+    )
+
+    assert pay_txn.fee <= 1_000_000
+
+    pay_txn_signed = LogicSigTransaction(pay_txn, derived_pay_lsig)
+
+    txid = node_algod.send_transaction(pay_txn_signed)
+    wait_for_confirmation(node_algod, txid)
+
+    logging.info("Settlement executed")
 
 
 async def recipient(websocket) -> None:
@@ -176,7 +220,12 @@ async def recipient(websocket) -> None:
     method = SMCMethod.FromString(await websocket.recv())
     if not method.method == SMCMethod.SETUP_CHANNEL:
         raise ValueError("Expected channel setup method.")
-    accepted_setup = await setup_channel(websocket)
+    try:
+        accepted_setup = await setup_channel(websocket)
+    except ValueError:
+        return
+
+    last_payment: Optional[Payment] = None
 
     # The recipient wants to keep accepting payments but also monitor the lifetime of this
     # channel to settle it before the refund condition comes online.
@@ -193,14 +242,21 @@ async def recipient(websocket) -> None:
             method = SMCMethod.FromString(method_message)
             if not method.method == SMCMethod.PAY:
                 raise ValueError("Expected payment method.")
-            await receive_payment(websocket, accepted_setup)
+            try:
+                payment = await receive_payment(websocket, accepted_setup)
+            except ValueError:
+                # Sender misbehaved.
+                break
+            else:
+                last_payment = payment
 
         chain_status = node_algod.status()
         # We want to have at least 10 blocks before sending the highest paying transaction.
         if chain_status["last-round"] >= accepted_setup.minRefundBlock - 10:
             break
 
-    await settle()
+    if last_payment:
+        await settle(accepted_setup, last_payment)
 
 
 async def main():

@@ -94,15 +94,14 @@ async def pay(
     setup_proposal: setupProposal,
     setup_response: setupResponse,
     cumulative_amount: int,
-):
+) -> None:
     """
     Handles the protocol for sending a payment.
 
     :param websocket:
+    :param setup_proposal: Sender's side of arguments for this channel
     :param setup_response: Recipient's side of arguments for this channel
     :param cumulative_amount: Sum of all payments from sender to recipient
-    :param setup_proposal: Sender's side of arguments for this channel
-    :return: TODO: TBD
     """
     await websocket.send(SMCMethod(method=SMCMethod.MethodEnum.PAY).SerializeToString())
 
