@@ -38,7 +38,6 @@ def smc_lsig_refund(
 
     # As per Algorand guidelines. All lsigs should contain an end block.
     # It's dangerous to sign lsigs that last for eternity.
-    # TODO: Figure out if there are some checks left to do. _Almost_ forgot about rekey. Whoopsie.
     lsig_pyteal = Seq(
         Assert(
             Txn.type_enum() == TxnType.Payment,
