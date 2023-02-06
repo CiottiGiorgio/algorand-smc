@@ -60,6 +60,16 @@ def smc_lsig_refund(
 def smc_lsig_pay(
     sender: str, recipient: str, cumulative_amount: int, min_block_refund: int
 ) -> LogicSigAccount:
+    """
+    Returns all necessary information about the logic signature that enables the sender (Alice) to pay Bob
+     using the SMC.
+
+    :param sender: Algorand address of Alice
+    :param recipient: Algorand address of Bob
+    :param cumulative_amount: Sum of all payments from Alice to Bob
+    :param min_block_refund: Last block (not included) for which it is safe to settle a payment.
+    :return: SDK wrapper around the bytecode of the logic signature
+    """
     # Sandbox node
     node_algod = get_sandbox_algod()
 

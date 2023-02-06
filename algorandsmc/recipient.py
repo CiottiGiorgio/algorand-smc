@@ -3,7 +3,9 @@ File that implements all things related to the recipient side of an SMC.
 """
 import asyncio
 import logging
-from asyncio import Lock, TimeoutError, wait_for
+from asyncio import Lock
+from asyncio import TimeoutError as AsyncTimeoutError
+from asyncio import wait_for
 
 import websockets
 from algosdk.account import address_from_private_key
@@ -13,8 +15,7 @@ from websockets.exceptions import ConnectionClosed
 
 # pylint: disable-next=no-name-in-module
 from algorandsmc.smc_pb2 import Payment, SMCMethod, setupProposal, setupResponse
-from algorandsmc.templates import smc_lsig_refund, smc_msig
-from algorandsmc.templates.lsig import smc_lsig_pay
+from algorandsmc.templates import smc_lsig_pay, smc_lsig_refund, smc_msig
 from algorandsmc.utils import get_sandbox_algod
 
 logging.root.setLevel(logging.INFO)
@@ -42,6 +43,14 @@ OC_LOCK = Lock()
 
 
 async def setup_channel(websocket) -> setupProposal:
+    """
+    Handles the setup of the channel on the recipient side.
+    This should include all reasonable checks that the recipient would want to do even if
+     commented out.
+
+    :param websocket:
+    :return: Sender's side of arguments for this channel
+    """
     node_algod = get_sandbox_algod()
 
     setup_proposal: setupProposal = setupProposal.FromString(await websocket.recv())
@@ -63,7 +72,7 @@ async def setup_channel(websocket) -> setupProposal:
     ):
         raise ValueError("Channel lifetime is not reasonable.")
 
-    logging.info(f"{setup_proposal = }")
+    logging.info("setup_proposal = %s", setup_proposal)
 
     # Compiling msig template on the recipient side.
     proposed_msig = smc_msig(
@@ -73,7 +82,7 @@ async def setup_channel(websocket) -> setupProposal:
         setup_proposal.minRefundBlock,
         setup_proposal.maxRefundBlock,
     )
-    logging.info(f"{proposed_msig.address() = }")
+    logging.info("proposed_msig.address() = %s", proposed_msig.address())
     async with OC_LOCK:
         if proposed_msig.address() in OPEN_CHANNELS:
             raise ValueError("This channel is already open.")
@@ -113,11 +122,18 @@ async def setup_channel(websocket) -> setupProposal:
 
 
 async def receive_payment(websocket, accepted_setup: setupProposal):
+    """
+    Handles the protocol for receiving a payment.
+
+    :param websocket:
+    :param accepted_setup: Sender's side of arguments for this channel
+    :return: TODO: TBD
+    """
     get_sandbox_algod()
 
     payment_proposal = Payment.FromString(await websocket.recv())
 
-    logging.info(f"{payment_proposal = }")
+    logging.info("payment_proposal = %s", payment_proposal)
 
     derived_msig = smc_msig(
         accepted_setup.sender,
@@ -137,14 +153,25 @@ async def receive_payment(websocket, accepted_setup: setupProposal):
     if not payment_lsig.verify():
         raise ValueError("Sender multisig subsig of the payment lsig is not valid.")
 
-    logging.info(f"{payment_lsig.verify() = }")
+    logging.info("payment_lsig.verify() = %s", payment_lsig.verify())
+
+    # TODO: Check Layer-1 msig balance to verify that we can accept this payment.
 
 
 async def settle():
+    # TODO: Generate docstring once signature is defined.
     ...
 
 
-async def recipient(websocket):
+async def recipient(websocket) -> None:
+    """
+    Implements the time-dependent state machine for the recipient side.
+    This machine can handle setup, payments and settlement depending on the time related or sender related
+    events/conditions.
+
+    :param websocket:
+    :return: None
+    """
     node_algod = get_sandbox_algod()
     method = SMCMethod.FromString(await websocket.recv())
     if not method.method == SMCMethod.SETUP_CHANNEL:
@@ -156,7 +183,7 @@ async def recipient(websocket):
     while True:
         try:
             method_message = await wait_for(websocket.recv(), 2.0)
-        except TimeoutError:
+        except AsyncTimeoutError:
             # No new payments last time we waited.
             pass
         except ConnectionClosed:
@@ -177,6 +204,8 @@ async def recipient(websocket):
 
 
 async def main():
+    """Entry point for the async flow"""
+    # pylint: disable-next=no-member
     async with websockets.serve(recipient, "localhost", 55_000):
         await asyncio.Future()
 
