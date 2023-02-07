@@ -179,7 +179,7 @@ async def refund_channel(
             "amount-without-pending-rewards"
         ]
 
-        if not msig_balance == 0:
+        if msig_balance == 0:
             # Here we are going to assume that the only reason why msig balance could be zero
             #  is that it was correctly settled by the recipient.
             raise SMCCannotBeRefunded
@@ -206,8 +206,7 @@ async def refund_channel(
     txid = node_algod.send_transaction(refund_txn_signed)
     wait_for_confirmation(node_algod, txid)
 
-    logging.info("Refund executed")
-    logging.info("TxID = %s", txid)
+    logging.info("Refund executed. TxID = %s", txid)
 
 
 async def honest_sender() -> None:
@@ -227,10 +226,7 @@ async def honest_sender() -> None:
         try:
             await refund_channel(setup_proposal, setup_response)
         except SMCCannotBeRefunded:
-            logging.info("Channel was settled.")
-            return
-
-        logging.info("Channel was refunded.")
+            logging.info("Recipient settled the channel.")
 
 
 if __name__ == "__main__":

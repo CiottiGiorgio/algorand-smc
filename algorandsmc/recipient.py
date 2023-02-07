@@ -216,8 +216,7 @@ async def settle(accepted_setup: setupProposal, last_payment: Payment) -> None:
     txid = node_algod.send_transaction(pay_txn_signed)
     wait_for_confirmation(node_algod, txid)
 
-    logging.info("Settlement executed")
-    logging.info("TxID = %s", txid)
+    logging.info("Settlement executed\nTxID = %s", txid)
 
 
 async def honest_recipient(websocket) -> None:
@@ -251,6 +250,7 @@ async def honest_recipient(websocket) -> None:
             pass
         except ConnectionClosed:
             # Sender has closed websocket.
+            logging.error("Sender has closed the websocket.")
             break
         else:
             method = SMCMethod.FromString(method_message)
