@@ -15,8 +15,12 @@ from algorandsmc.errors import SMCBadSetup, SMCCannotBeRefunded
 
 # pylint: disable-next=no-name-in-module
 from algorandsmc.smc_pb2 import Payment, SMCMethod, setupProposal, setupResponse
-from algorandsmc.templates import smc_lsig_pay, smc_lsig_refund, smc_msig
-from algorandsmc.templates.txn import smc_txn_refund
+from algorandsmc.templates import (
+    smc_lsig_pay,
+    smc_lsig_refund,
+    smc_msig,
+    smc_txn_refund,
+)
 from algorandsmc.utils import get_sandbox_algod, get_sandbox_indexer
 
 logging.root.setLevel(logging.INFO)
@@ -223,6 +227,9 @@ async def honest_sender() -> None:
         await pay(websocket, setup_proposal, setup_response, 1_000_000)
         await sleep(2.0)
         await pay(websocket, setup_proposal, setup_response, 2_000_000)
+        # By waiting for the refund condition in the async context, we implicitly keep
+        #  the websocket alive even if we have no intention of making further payments.
+        # Leaving this async context should immediately trigger a settlement on the recipient side.
         try:
             await refund_channel(setup_proposal, setup_response)
         except SMCCannotBeRefunded:
