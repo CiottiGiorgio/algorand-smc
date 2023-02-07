@@ -11,6 +11,8 @@ from algosdk.encoding import is_valid_address
 from algosdk.mnemonic import to_private_key
 from algosdk.transaction import PaymentTxn, wait_for_confirmation
 
+from algorandsmc.errors import SMCBadSetup
+
 # pylint: disable-next=no-name-in-module
 from algorandsmc.smc_pb2 import Payment, SMCMethod, setupProposal, setupResponse
 from algorandsmc.templates import smc_lsig_pay, smc_lsig_refund, smc_msig
@@ -35,7 +37,7 @@ async def setup_channel(websocket, setup_proposal: setupProposal) -> setupRespon
     :param setup_proposal: Channel arguments to be sent as a proposal
     :return: Recipient's side of arguments for this channel
     """
-    node_algod = get_sandbox_algod()
+    get_sandbox_algod()
 
     await websocket.send(
         SMCMethod(method=SMCMethod.MethodEnum.SETUP_CHANNEL).SerializeToString()
@@ -45,7 +47,7 @@ async def setup_channel(websocket, setup_proposal: setupProposal) -> setupRespon
     setup_response = setupResponse.FromString(await websocket.recv())
     # Protobuf doesn't know what constitutes a valid Algorand address.
     if not is_valid_address(setup_response.recipient):
-        raise ValueError("Recipient address is not a valid Algorand address.")
+        raise SMCBadSetup("Recipient address is not a valid Algorand address.")
 
     logging.info("setup_response = %s", setup_response)
 
@@ -68,7 +70,7 @@ async def setup_channel(websocket, setup_proposal: setupProposal) -> setupRespon
     accepted_refund_lsig.lsig.msig.subsigs[1].signature = setup_response.lsigSignature
     if not accepted_refund_lsig.verify():
         # Least incomprehensible sentence in this code.
-        raise ValueError("Recipient multisig subsig of the refund lsig is not valid.")
+        raise SMCBadSetup("Recipient multisig subsig of the refund lsig is not valid.")
 
     logging.info("Channel accepted.")
 

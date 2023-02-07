@@ -11,9 +11,12 @@ from typing import Optional
 import websockets
 from algosdk.account import address_from_private_key
 from algosdk.encoding import is_valid_address
+from algosdk.error import IndexerHTTPError
 from algosdk.mnemonic import to_private_key
 from algosdk.transaction import LogicSigTransaction, wait_for_confirmation
 from websockets.exceptions import ConnectionClosed
+
+from algorandsmc.errors import SMCBadFunding, SMCBadSetup, SMCBadSignature
 
 # pylint: disable-next=no-name-in-module
 from algorandsmc.smc_pb2 import Payment, SMCMethod, setupProposal, setupResponse
@@ -58,10 +61,10 @@ async def setup_channel(websocket) -> setupProposal:
     setup_proposal: setupProposal = setupProposal.FromString(await websocket.recv())
     # Protobuf doesn't know what constitutes a valid Algorand address.
     if not is_valid_address(setup_proposal.sender):
-        raise ValueError("Sender address is not a valid Algorand address.")
+        raise SMCBadSetup("Sender address is not a valid Algorand address.")
     # Refund condition should be sound.
     if not setup_proposal.minRefundBlock <= setup_proposal.maxRefundBlock:
-        raise ValueError("Refund condition can never happen.")
+        raise SMCBadSetup("Refund condition can never happen.")
 
     chain_status = node_algod.status()
     # Should be at the very most 5 seconds per block. More than that and we can say that we are out of sync.
@@ -72,7 +75,7 @@ async def setup_channel(websocket) -> setupProposal:
         not setup_proposal.minRefundBlock
         >= chain_status["last-round"] + MIN_ACCEPTED_LIFETIME
     ):
-        raise ValueError("Channel lifetime is not reasonable.")
+        raise SMCBadSetup("Channel lifetime is not reasonable.")
 
     logging.info("setup_proposal = %s", setup_proposal)
 
@@ -87,7 +90,7 @@ async def setup_channel(websocket) -> setupProposal:
     logging.info("proposed_msig.address() = %s", proposed_msig.address())
     async with OC_LOCK:
         if proposed_msig.address() in OPEN_CHANNELS:
-            raise ValueError("This channel is already open.")
+            raise SMCBadSetup("This channel is already open.")
 
     # Compiling lsig template on the recipient side.
     proposed_refund_lsig = smc_lsig_refund(
@@ -155,14 +158,21 @@ async def receive_payment(websocket, accepted_setup: setupProposal) -> Payment:
     payment_lsig.sign_multisig(derived_msig, RECIPIENT_PRIVATE_KEY)
     payment_lsig.lsig.msig.subsigs[0].signature = payment_proposal.lsigSignature
     if not payment_lsig.verify():
-        raise ValueError("Sender multisig subsig of the payment lsig is not valid.")
+        raise SMCBadSignature(
+            "Sender multisig subsig of the payment lsig is not valid."
+        )
 
-    msig_balance = node_indexer.account_info(derived_msig.address())["account"][
-        "amount-without-pending-rewards"
-    ]
+    try:
+        msig_balance = node_indexer.account_info(derived_msig.address())["account"][
+            "amount-without-pending-rewards"
+        ]
+    except IndexerHTTPError:
+        raise SMCBadFunding(
+            "Could not find msig account. Must be below minimum balance."
+        )
     # We are ignoring fees for the moment.
     if msig_balance < payment_proposal.cumulativeAmount:
-        raise ValueError("Balance of msig cannot cover this payment.")
+        raise SMCBadFunding("Balance of msig cannot cover this payment.")
 
     return payment_proposal
 
@@ -221,9 +231,11 @@ async def recipient(websocket) -> None:
     method = SMCMethod.FromString(await websocket.recv())
     if not method.method == SMCMethod.SETUP_CHANNEL:
         raise ValueError("Expected channel setup method.")
+
     try:
         accepted_setup = await setup_channel(websocket)
-    except ValueError:
+    except SMCBadSetup as err:
+        logging.error("%s", err)
         return
 
     last_payment: Optional[Payment] = None
@@ -242,14 +254,13 @@ async def recipient(websocket) -> None:
         else:
             method = SMCMethod.FromString(method_message)
             if not method.method == SMCMethod.PAY:
-                # Sender misbehaved.
                 logging.error("Expected payment method.")
                 break
+
             try:
                 payment = await receive_payment(websocket, accepted_setup)
-            except ValueError as err:
-                # Sender misbehaved.
-                logging.error("Bad payment. Error = %s", err)
+            except (SMCBadSignature, SMCBadFunding) as err:
+                logging.error("Bad payment. %s", err)
                 break
             else:
                 if (
