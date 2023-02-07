@@ -8,6 +8,7 @@ from asyncio import sleep
 import websockets
 from algosdk.account import address_from_private_key
 from algosdk.encoding import is_valid_address
+from algosdk.error import IndexerHTTPError
 from algosdk.mnemonic import to_private_key
 from algosdk.transaction import LogicSigTransaction, PaymentTxn, wait_for_confirmation
 
@@ -176,13 +177,19 @@ async def refund_channel(
     )
 
     while True:
-        # This time we are going to assume that the account has enough minimum balance
-        #  to be recognized by the indexer.
-        # On the sender's side, it only makes sense to attempt a refund if there are money in it.
-        msig_balance = node_indexer.account_info(derived_msig.address())["account"][
-            "amount-without-pending-rewards"
-        ]
+        # ALGO balance of 0 could make the indexer not recognize the address as valid.
+        try:
+            msig_balance = node_indexer.account_info(derived_msig.address())["account"][
+                "amount-without-pending-rewards"
+            ]
+        except IndexerHTTPError as err:
+            raise SMCCannotBeRefunded from err
 
+        # Kind of redundant condition. Indexer does not seem to find accounts for which ALGO balance is 0.
+        #  It can't even be the case that the account has 0 ALGO but positive ASA balance because
+        #  ASAs require minimum ALGO balance.
+        # We keep this condition here anyway to not rely on the behaviour of the indexer to not find
+        #  accounts with 0 ALGO balance.
         if msig_balance == 0:
             # Here we are going to assume that the only reason why msig balance could be zero
             #  is that it was correctly settled by the recipient.
@@ -236,7 +243,25 @@ async def honest_sender() -> None:
             logging.info("Recipient settled the channel.")
 
 
+async def dishonest_sender() -> None:
+    setup_proposal = setupProposal(
+        sender=SENDER_ADDR, nonce=2048, minRefundBlock=10_000, maxRefundBlock=10_500
+    )
+
+    # pylint: disable-next=no-member
+    async with websockets.connect("ws://localhost:55000") as websocket:
+        setup_response = await setup_channel(websocket, setup_proposal)
+        fund(setup_proposal, setup_response, 10_000_000)
+        await pay(websocket, setup_proposal, setup_response, 5_000_000)
+        await sleep(1.0)
+        await pay(websocket, setup_proposal, setup_response, 11_000_000)
+        try:
+            await refund_channel(setup_proposal, setup_response)
+        except SMCCannotBeRefunded:
+            logging.info("Recipient settled the channel.")
+
+
 if __name__ == "__main__":
     logging.info("sender: %s", SENDER_ADDR)
 
-    asyncio.run(honest_sender())
+    asyncio.run(dishonest_sender())
