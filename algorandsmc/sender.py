@@ -244,6 +244,7 @@ async def honest_sender() -> None:
 
 
 async def dishonest_sender() -> None:
+    """Demo of a dishonest sender"""
     setup_proposal = setupProposal(
         sender=SENDER_ADDR, nonce=2048, minRefundBlock=10_000, maxRefundBlock=10_500
     )
@@ -261,7 +262,14 @@ async def dishonest_sender() -> None:
             logging.info("Recipient settled the channel.")
 
 
+async def main():
+    """Entry point for the async flow"""
+
+    await honest_sender()
+    # await asyncio.gather(honest_sender(), dishonest_sender())
+
+
 if __name__ == "__main__":
     logging.info("sender: %s", SENDER_ADDR)
 
-    asyncio.run(dishonest_sender())
+    asyncio.run(main())
