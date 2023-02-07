@@ -18,3 +18,7 @@ class SMCBadSignature(SMCBase):
 
 class SMCBadFunding(SMCBase):
     pass
+
+
+class SMCCannotBeRefunded(SMCBase):
+    pass

@@ -6,6 +6,8 @@ from algosdk.transaction import PaymentTxn
 from algorandsmc.utils import get_sandbox_algod
 
 
+# FIXME: This function is gathering information about first/last block but there are
+#  time constraints that must be respected to receive a payment.
 def smc_txn_pay(msig: str, sender: str, recipient: str, cumulative_amount: int):
     """
     Returns all necessary information about the payment transaction that enables the recipient (Bob) to
@@ -24,3 +26,16 @@ def smc_txn_pay(msig: str, sender: str, recipient: str, cumulative_amount: int):
     return PaymentTxn(
         msig, sugg_params, recipient, cumulative_amount, close_remainder_to=sender
     )
+
+
+# FIXME: This function is gathering information about first/last block but there are
+#  time constraints that must be respected to be refunded.
+def smc_txn_refund(msig: str, sender: str) -> PaymentTxn:
+    """
+    Returns the compiled refund transaction that the sender (Alice) can use in case of an
+    uncooperative recipient (Bob).
+
+    :param msig: Algorand address of the msig
+    :param sender: Algorand address of the sender
+    :return: SDK wrapper around the refund transaction
+    """

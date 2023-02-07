@@ -9,14 +9,15 @@ import websockets
 from algosdk.account import address_from_private_key
 from algosdk.encoding import is_valid_address
 from algosdk.mnemonic import to_private_key
-from algosdk.transaction import PaymentTxn, wait_for_confirmation
+from algosdk.transaction import LogicSigTransaction, PaymentTxn, wait_for_confirmation
 
-from algorandsmc.errors import SMCBadSetup
+from algorandsmc.errors import SMCBadSetup, SMCCannotBeRefunded
 
 # pylint: disable-next=no-name-in-module
 from algorandsmc.smc_pb2 import Payment, SMCMethod, setupProposal, setupResponse
 from algorandsmc.templates import smc_lsig_pay, smc_lsig_refund, smc_msig
-from algorandsmc.utils import get_sandbox_algod
+from algorandsmc.templates.txn import smc_txn_refund
+from algorandsmc.utils import get_sandbox_algod, get_sandbox_indexer
 
 logging.root.setLevel(logging.INFO)
 
@@ -149,6 +150,59 @@ async def pay(
     logging.info("Payment accepted.")
 
 
+async def refund_channel(
+    setup_proposal: setupProposal, setup_response: setupResponse
+) -> None:
+    node_algod = get_sandbox_algod()
+    node_indexer = get_sandbox_indexer()
+
+    derived_msig = smc_msig(
+        SENDER_ADDR,
+        setup_response.recipient,
+        setup_proposal.nonce,
+        setup_proposal.minRefundBlock,
+        setup_proposal.maxRefundBlock,
+    )
+
+    while True:
+        # This time we are going to assume that the account has enough minimum balance
+        #  to be recognized by the indexer.
+        # On the sender's side, it only makes sense to attempt a refund if there are money in it.
+        msig_balance = node_indexer.account_info(derived_msig.address())["account"][
+            "amount-without-pending-rewards"
+        ]
+
+        if not msig_balance == 0:
+            # Here we are going to assume that the only reason why msig balance could be zero
+            #  is that it was correctly settled by the recipient.
+            raise SMCCannotBeRefunded
+
+        last_round = node_algod.status()["last-round"]
+        if last_round >= setup_proposal.minRefundBlock:
+            # Refund condition is online.
+            break
+
+        await sleep(5.0)
+
+    refund_txn = smc_txn_refund(derived_msig.address(), SENDER_ADDR)
+
+    assert refund_txn.fee <= 1_000_000
+
+    derived_refund_lsig = smc_lsig_refund(
+        SENDER_ADDR, setup_proposal.minRefundBlock, setup_proposal.maxRefundBlock
+    )
+    derived_refund_lsig.sign_multisig(derived_msig, SENDER_PRIVATE_KEY)
+    derived_refund_lsig.lsig.msig.subsigs[1].signature = setup_response.lsigSignature
+
+    refund_txn_signed = LogicSigTransaction(refund_txn, derived_refund_lsig)
+
+    txid = node_algod.send_transaction(refund_txn_signed)
+    wait_for_confirmation(node_algod, txid)
+
+    logging.info("Refund executed")
+    logging.info("TxID = %s", txid)
+
+
 async def honest_sender() -> None:
     """Demo of an honest sender"""
     setup_proposal = setupProposal(
@@ -163,7 +217,14 @@ async def honest_sender() -> None:
         await pay(websocket, setup_proposal, setup_response, 1_000_000)
         await sleep(2.0)
         await pay(websocket, setup_proposal, setup_response, 2_000_000)
-        await sleep(0.5)
+        try:
+            await refund_channel(setup_proposal, setup_response)
+        except SMCCannotBeRefunded:
+            logging.info("Channel was settled.")
+            return
+        else:
+            logging.info("Channel was refunded.")
+            return
 
 
 if __name__ == "__main__":
