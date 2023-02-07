@@ -178,6 +178,9 @@ async def refund_channel(
 
     while True:
         # ALGO balance of 0 could make the indexer not recognize the address as valid.
+        # Assuming that the sender would only call this function if they know they funded msig,
+        #  the only reason this account could have 0 ALGO balance, is if the recipient
+        #  settled the channel.
         try:
             msig_balance = node_indexer.account_info(derived_msig.address())["account"][
                 "amount-without-pending-rewards"
@@ -191,8 +194,6 @@ async def refund_channel(
         # We keep this condition here anyway to not rely on the behaviour of the indexer to not find
         #  accounts with 0 ALGO balance.
         if msig_balance == 0:
-            # Here we are going to assume that the only reason why msig balance could be zero
-            #  is that it was correctly settled by the recipient.
             raise SMCCannotBeRefunded
 
         last_round = node_algod.status()["last-round"]
@@ -230,21 +231,28 @@ async def honest_sender() -> None:
     async with websockets.connect("ws://localhost:55000") as websocket:
         setup_response = await setup_channel(websocket, setup_proposal)
         fund(setup_proposal, setup_response, 10_000_000)
-        await sleep(1.0)
         await pay(websocket, setup_proposal, setup_response, 1_000_000)
-        await sleep(2.0)
+        await sleep(1.0)
         await pay(websocket, setup_proposal, setup_response, 2_000_000)
-        # By waiting for the refund condition in the async context, we implicitly keep
-        #  the websocket alive even if we have no intention of making further payments.
-        # Leaving this async context should immediately trigger a settlement on the recipient side.
+        # An honest sender should keep monitoring the chain in case of a dishonest recipient.
+        # If however, the recipient correctly settled the channel, we shouldn't wait
+        #  for the refund condition.
+
+        # Since we are in an async context, leaving it would cancel the open websocket
+        #  and that should trigger a settlement execution on the recipient side.
+        # Therefore, even though the refund execution does not require a websocket, we choose to
+        #  wait within the async context.
         try:
             await refund_channel(setup_proposal, setup_response)
         except SMCCannotBeRefunded:
             logging.info("Recipient settled the channel.")
 
 
-async def dishonest_sender() -> None:
-    """Demo of a dishonest sender"""
+async def undercollateralized_dishonest_sender() -> None:
+    """
+    Demo of a dishonest sender.
+    This sender will try to submit a payment that is not covered on the Layer-1.
+    """
     setup_proposal = setupProposal(
         sender=SENDER_ADDR, nonce=2048, minRefundBlock=10_000, maxRefundBlock=10_500
     )
@@ -266,7 +274,7 @@ async def main():
     """Entry point for the async flow"""
 
     await honest_sender()
-    # await asyncio.gather(honest_sender(), dishonest_sender())
+    # await undercollateralized_dishonest_sender()
 
 
 if __name__ == "__main__":
