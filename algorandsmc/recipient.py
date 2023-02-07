@@ -219,9 +219,9 @@ async def settle(accepted_setup: setupProposal, last_payment: Payment) -> None:
     logging.info("TxID = %s", txid)
 
 
-async def recipient(websocket) -> None:
+async def honest_recipient(websocket) -> None:
     """
-    Implements the time-dependent state machine for the recipient side.
+    Implements the time-dependent state machine for the honest recipient side.
     This machine can handle setup, payments and settlement depending on the time related or sender related
     events/conditions.
 
@@ -287,7 +287,7 @@ async def main():
     logging.info("recipient: %s", RECIPIENT_ADDR)
 
     # pylint: disable-next=no-member
-    async with websockets.serve(recipient, "localhost", 55_000):
+    async with websockets.serve(honest_recipient, "localhost", 55_000):
         await asyncio.Future()
 
 
