@@ -216,7 +216,6 @@ async def recipient(websocket) -> None:
     events/conditions.
 
     :param websocket:
-    :return: None
     """
     node_algod = get_sandbox_algod()
     method = SMCMethod.FromString(await websocket.recv())

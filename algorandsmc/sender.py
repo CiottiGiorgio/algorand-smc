@@ -72,23 +72,39 @@ async def setup_channel(websocket, setup_proposal: setupProposal) -> setupRespon
 
     logging.info("Channel accepted.")
 
-    # This last step is not technically required from the sender at this point in time.
-    # However, for sake of simplicity, we choose to fund the msig right now.
-    # It should be noted that is not necessary to fund it before sending any Layer-2 payment.
-    # Bob should only check the balance of the msig when accepting payments since this step is not
-    #  crucial to channel setup.
-    # This is also why the initial amount of the channel is not exchanged.
+    return setup_response
+
+
+def fund(
+    setup_proposal: setupProposal, setup_response: setupResponse, amount: int
+) -> None:
+    """
+    Funds the msig associated with the established channel by amount.
+    It should be noted that in this model it is possible to fund the msig multiple times after channel setup.
+
+    :param setup_proposal: Sender's side of arguments for this channel
+    :param setup_response: Recipient's side of arguments for this channel
+    :param amount: microalgos to send
+    """
+    node_algod = get_sandbox_algod()
+
+    derived_msig = smc_msig(
+        SENDER_ADDR,
+        setup_response.recipient,
+        setup_proposal.nonce,
+        setup_proposal.minRefundBlock,
+        setup_proposal.maxRefundBlock,
+    )
+
     sugg_params = node_algod.suggested_params()
     txid = node_algod.send_transaction(
-        PaymentTxn(SENDER_ADDR, sugg_params, accepted_msig.address(), 10_000_000).sign(
+        PaymentTxn(SENDER_ADDR, sugg_params, derived_msig.address(), amount).sign(
             SENDER_PRIVATE_KEY
         )
     )
     wait_for_confirmation(node_algod, txid)
 
     logging.info("Funding TxID = %s", txid)
-
-    return setup_response
 
 
 async def pay(
@@ -140,6 +156,7 @@ async def honest_sender() -> None:
     # pylint: disable-next=no-member
     async with websockets.connect("ws://localhost:55000") as websocket:
         setup_response = await setup_channel(websocket, setup_proposal)
+        fund(setup_proposal, setup_response, 10_000_000)
         await sleep(1.0)
         await pay(websocket, setup_proposal, setup_response, 1_000_000)
         await sleep(2.0)
