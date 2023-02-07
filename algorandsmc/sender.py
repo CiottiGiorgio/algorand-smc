@@ -153,6 +153,13 @@ async def pay(
 async def refund_channel(
     setup_proposal: setupProposal, setup_response: setupResponse
 ) -> None:
+    """
+    Handles the end of a channel lifetime. It submits refund transaction OR detect channel settlement
+     from the recipient side.
+
+    :param setup_proposal: Sender's side of arguments for this channel
+    :param setup_response: Recipient's side of arguments for this channel
+    """
     node_algod = get_sandbox_algod()
     node_indexer = get_sandbox_indexer()
 
@@ -222,9 +229,8 @@ async def honest_sender() -> None:
         except SMCCannotBeRefunded:
             logging.info("Channel was settled.")
             return
-        else:
-            logging.info("Channel was refunded.")
-            return
+
+        logging.info("Channel was refunded.")
 
 
 if __name__ == "__main__":

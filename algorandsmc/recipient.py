@@ -166,10 +166,10 @@ async def receive_payment(websocket, accepted_setup: setupProposal) -> Payment:
         msig_balance = node_indexer.account_info(derived_msig.address())["account"][
             "amount-without-pending-rewards"
         ]
-    except IndexerHTTPError:
+    except IndexerHTTPError as err:
         raise SMCBadFunding(
             "Could not find msig account. Must be below minimum balance."
-        )
+        ) from err
     # We are ignoring fees for the moment.
     if msig_balance < payment_proposal.cumulativeAmount:
         raise SMCBadFunding("Balance of msig cannot cover this payment.")

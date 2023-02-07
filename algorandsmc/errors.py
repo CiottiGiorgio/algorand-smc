@@ -5,20 +5,23 @@ from abc import ABC
 
 
 class SMCBase(ABC, Exception):
-    pass
+    """Abstract Base Class for all exceptions related to Algorand SMC"""
 
 
 class SMCBadSetup(SMCBase):
-    pass
+    """Exception raised if setup fails"""
 
 
 class SMCBadSignature(SMCBase):
-    pass
+    """Exceptions raised if a signature cannot be apposed to the related Layer-1 primitive"""
 
 
 class SMCBadFunding(SMCBase):
-    pass
+    """Exception raised if the msig cannot uphold the payment assumption"""
 
 
 class SMCCannotBeRefunded(SMCBase):
-    pass
+    """
+    Exception raised if the msig was correctly settled before the refund condition
+     became online.
+    """

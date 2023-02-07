@@ -39,3 +39,8 @@ def smc_txn_refund(msig: str, sender: str) -> PaymentTxn:
     :param sender: Algorand address of the sender
     :return: SDK wrapper around the refund transaction
     """
+    node_algod = get_sandbox_algod()
+
+    sugg_params = node_algod.suggested_params()
+
+    return PaymentTxn(msig, sugg_params, sender, 0, close_remainder_to=sender)
