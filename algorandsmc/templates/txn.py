@@ -1,12 +1,12 @@
 """
-File that implements the template for the payment transaction
+File that implements the template for the SMC Layer-1 transactions.
 """
 from algosdk.transaction import PaymentTxn
 
 from algorandsmc.utils import get_sandbox_algod
 
 
-def smc_txn_pay(msig: str, sender: str, recipient: str, cumulative_amount: int, min_refund_block: int):
+def smc_txn_settlement(msig: str, sender: str, recipient: str, cumulative_amount: int, min_refund_block: int):
     """
     Returns all necessary information about the payment transaction that enables the recipient (Bob) to
      settle on Layer-1 the last received payment.
@@ -24,7 +24,7 @@ def smc_txn_pay(msig: str, sender: str, recipient: str, cumulative_amount: int, 
 
     # We need at least one block before the refund condition to submit a settlement.
     if sugg_params.first >= min_refund_block:
-        raise ValueError("Suggested parameters for payment transaction are not compatible with min_refund_block.")
+        raise ValueError("Suggested parameters for settlement transaction are not compatible with min_refund_block.")
 
     # There's enough time to submit a settlement transaction but lastBlock could be > min_refund_block.
     # In this case, we want the transaction to have a block range that will be accepted by settlement lsig.

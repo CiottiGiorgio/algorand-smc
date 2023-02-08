@@ -15,7 +15,7 @@ from algorandsmc.errors import SMCBadSetup, SMCCannotBeRefunded
 # pylint: disable-next=no-name-in-module
 from algorandsmc.smc_pb2 import Payment, SMCMethod, setupProposal, setupResponse
 from algorandsmc.templates import (
-    smc_lsig_pay,
+    smc_lsig_settlement,
     smc_lsig_refund,
     smc_msig,
     smc_txn_refund,
@@ -136,7 +136,7 @@ async def pay(
         setup_proposal.minRefundBlock,
         setup_proposal.maxRefundBlock,
     )
-    payment_lsig_proposal = smc_lsig_pay(
+    payment_lsig_proposal = smc_lsig_settlement(
         SENDER_ADDR,
         setup_response.recipient,
         cumulative_amount,

@@ -14,7 +14,7 @@ from algorandsmc.errors import SMCBadFunding, SMCBadSetup, SMCBadSignature
 
 # pylint: disable-next=no-name-in-module
 from algorandsmc.smc_pb2 import Payment, setupProposal, setupResponse
-from algorandsmc.templates import smc_lsig_pay, smc_lsig_refund, smc_msig, smc_txn_pay
+from algorandsmc.templates import smc_lsig_settlement, smc_lsig_refund, smc_msig, smc_txn_settlement
 from algorandsmc.utils import get_sandbox_algod, get_sandbox_indexer
 
 logging.root.setLevel(logging.INFO)
@@ -141,7 +141,7 @@ async def receive_payment(websocket, accepted_setup: setupProposal) -> Payment:
         accepted_setup.minRefundBlock,
         accepted_setup.maxRefundBlock,
     )
-    payment_lsig = smc_lsig_pay(
+    payment_lsig = smc_lsig_settlement(
         accepted_setup.sender,
         RECIPIENT_ADDR,
         payment_proposal.cumulativeAmount,
@@ -187,7 +187,7 @@ async def settle(accepted_setup: setupProposal, last_payment: Payment) -> None:
         accepted_setup.minRefundBlock,
         accepted_setup.maxRefundBlock,
     )
-    derived_pay_lsig = smc_lsig_pay(
+    derived_pay_lsig = smc_lsig_settlement(
         accepted_setup.sender,
         RECIPIENT_ADDR,
         last_payment.cumulativeAmount,
@@ -195,7 +195,7 @@ async def settle(accepted_setup: setupProposal, last_payment: Payment) -> None:
     )
     derived_pay_lsig.sign_multisig(derived_msig, RECIPIENT_PRIVATE_KEY)
     derived_pay_lsig.lsig.msig.subsigs[0].signature = last_payment.lsigSignature
-    pay_txn = smc_txn_pay(
+    pay_txn = smc_txn_settlement(
         derived_msig.address(),
         accepted_setup.sender,
         RECIPIENT_ADDR,
