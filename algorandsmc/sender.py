@@ -15,8 +15,8 @@ from algorandsmc.errors import SMCBadSetup, SMCCannotBeRefunded
 # pylint: disable-next=no-name-in-module
 from algorandsmc.smc_pb2 import Payment, SMCMethod, setupProposal, setupResponse
 from algorandsmc.templates import (
-    smc_lsig_settlement,
     smc_lsig_refund,
+    smc_lsig_settlement,
     smc_msig,
     smc_txn_refund,
 )
@@ -201,7 +201,12 @@ async def refund_channel(
 
         await sleep(2.0)
 
-    refund_txn = smc_txn_refund(derived_msig.address(), SENDER_ADDR)
+    refund_txn = smc_txn_refund(
+        derived_msig.address(),
+        SENDER_ADDR,
+        setup_proposal.minRefundBlock,
+        setup_proposal.maxRefundBlock,
+    )
 
     assert refund_txn.fee <= 1_000_000
 

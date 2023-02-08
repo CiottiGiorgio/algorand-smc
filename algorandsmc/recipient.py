@@ -14,7 +14,12 @@ from algorandsmc.errors import SMCBadFunding, SMCBadSetup, SMCBadSignature
 
 # pylint: disable-next=no-name-in-module
 from algorandsmc.smc_pb2 import Payment, setupProposal, setupResponse
-from algorandsmc.templates import smc_lsig_settlement, smc_lsig_refund, smc_msig, smc_txn_settlement
+from algorandsmc.templates import (
+    smc_lsig_refund,
+    smc_lsig_settlement,
+    smc_msig,
+    smc_txn_settlement,
+)
 from algorandsmc.utils import get_sandbox_algod, get_sandbox_indexer
 
 logging.root.setLevel(logging.INFO)
@@ -60,7 +65,7 @@ async def setup_channel(websocket) -> setupProposal:
     if not setup_proposal.minRefundBlock <= setup_proposal.maxRefundBlock:
         raise SMCBadSetup("Refund condition can never happen.")
 
-    chain_status = node_algod.status()
+    node_algod.status()
     # Should be at the very most 5 seconds per block. More than that and we can say that we are out of sync.
     # if not chain_status["time-since-last-round"] < 6 * 10**9:
     #     raise Exception("Recipient knowledge of the chain is not synchronized.")
@@ -200,7 +205,7 @@ async def settle(accepted_setup: setupProposal, last_payment: Payment) -> None:
         accepted_setup.sender,
         RECIPIENT_ADDR,
         last_payment.cumulativeAmount,
-        accepted_setup.minRefundBlock
+        accepted_setup.minRefundBlock,
     )
 
     assert pay_txn.fee <= 1_000_000
