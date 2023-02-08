@@ -82,3 +82,11 @@ is at most the current balance of the msig address.
 Alice can also sign a transaction with the shared lsig to unilaterally close the channel and be refunded if Bob is not cooperating.
 Although it should be noted that the lsig allows _only_ Alice to be refunded, Bob does not own a fully signed lsig.
 By the same token, Alice signs payments _only_ to Bob but does not own a fully signed payment transaction.
+
+## Future development
+SMC are one of the simplest mechanisms in the Layer-2 scene, but they can serve as starting point to implement
+bidirectional, trustless, multi-party, fully connected payment networks.
+For further info on how that is possible, there is a very interesting SoK paper linked in the introduction.
+
+There is no current plan to enhance this project beyond the scope of SMCs, make this production-ready or
+build an Algorand product on these ideas.
