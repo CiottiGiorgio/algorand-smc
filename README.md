@@ -19,8 +19,11 @@ that he can keep accepting payments (in the form of signed transactions) until t
 Although Algorand can boast extremely cheap transaction fees, incredible speed and finality, even a small cost
 multiplied by a considerable number of transaction can have an impact.
 SMC, as designed in this project, suffer from the same problems that they have on Bitcoin.
-Namely, it's hard/costly to reset them, and they involve only two parties.
-Nevertheless, the implementation takes an interesting shape on Algorand because of the difference in the
+Namely, they are unidirectional, it's hard/costly to reset them, and they involve only two parties.
+Nevertheless, they can still allow two parties to transact without any knowledge ahead-of-time.
+Meaning that they don't need to know how many payments are going to be exchanged, and they don't
+need to know when these payments will be executed.
+Also, the implementation takes an interesting shape on Algorand because of the difference in the
 primitives provided by its Layer-1.
 
 Instead of `UTXO`, `Timelocks` and `Script language`, we have a rich Algorand Layer-1 feature set that we can leverage.
@@ -45,11 +48,15 @@ its lifetime shouldn't be accepted by the recipient. Deriving the msig address a
 against a local database is easy to do.
 
 ### LogicSignature
-Alice's refund condition happens through the use of a lsig.
+Alice's payments to Bob happens through the use of a lsig. Alice signs a delegation to submit a transaction with
+ Bob as the recipient, Alice as the closeout and the amount defined in the latest lsig.
+
+Alice's refund condition also happens through the use of a lsig.
 The msig account must delegate the authority executing the refund transaction to Alice alone. Following Algorand terminology, msig becomes a delegating account and Alice the
 delegated account.
 
-This lsig is TEAL code signed by the msig account (in turn, both Alice and Bob since they are the participants of the msig).
+These lsigs are TEAL code signed by the msig account
+ (in turn, both Alice and Bob since they are the participants of the msig).
 
 ### Communication protocol
 Both parties should exchange as little information as possible in the Layer-2.
