@@ -74,8 +74,8 @@ async def honest_recipient(websocket) -> None:
                 last_payment = payment
 
         chain_status = node_algod.status()
-        # We want to have at least 10 blocks before sending the highest paying transaction.
-        if chain_status["last-round"] >= accepted_setup.minRefundBlock - 10:
+        # We want to have at least 5 blocks before sending the highest paying transaction.
+        if chain_status["last-round"] >= accepted_setup.minRefundBlock - 5:
             break
 
     if last_payment:
