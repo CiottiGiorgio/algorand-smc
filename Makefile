@@ -4,7 +4,7 @@
 SRCDIR=algorandsmc
 TESTDIR=tests
 
-TARGETDIRS=$(SRCDIR)/ $(TESTDIR)/
+TARGETDIRS=$(SRCDIR)/ demos/ $(TESTDIR)/
 
 PROTOC=protoc
 
