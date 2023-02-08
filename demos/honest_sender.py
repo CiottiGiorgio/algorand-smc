@@ -35,6 +35,8 @@ async def honest_sender() -> None:
         #  and that should trigger a settlement execution on the recipient side.
         # Therefore, even though the refund execution does not require a websocket, we choose to
         #  wait within the async context.
+        # This also means that we don't care if the recipient closes the websocket with us
+        #  because an honest sender should try to execute a refund regardless.
         # pylint: disable-next=duplicate-code
         try:
             await refund_channel(setup_proposal, setup_response)
