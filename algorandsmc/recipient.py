@@ -195,12 +195,12 @@ async def settle(accepted_setup: setupProposal, last_payment: Payment) -> None:
     )
     derived_pay_lsig.sign_multisig(derived_msig, RECIPIENT_PRIVATE_KEY)
     derived_pay_lsig.lsig.msig.subsigs[0].signature = last_payment.lsigSignature
-    # FIXME: This template could compile a transaction that is outside of the range accepted by the pay lsig.
     pay_txn = smc_txn_pay(
         derived_msig.address(),
         accepted_setup.sender,
         RECIPIENT_ADDR,
         last_payment.cumulativeAmount,
+        accepted_setup.minRefundBlock
     )
 
     assert pay_txn.fee <= 1_000_000
