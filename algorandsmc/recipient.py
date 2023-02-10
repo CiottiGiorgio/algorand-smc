@@ -87,9 +87,8 @@ async def setup_channel(websocket) -> setupProposal:
         setup_proposal.maxRefundBlock,
     )
     logging.info("proposed_msig.address() = %s", proposed_msig.address())
-    async with OC_LOCK:
-        if proposed_msig.address() in OPEN_CHANNELS:
-            raise SMCBadSetup("This channel is already open.")
+    if proposed_msig.address() in OPEN_CHANNELS:
+        raise SMCBadSetup("This channel is already open.")
 
     # Compiling lsig template on the recipient side.
     proposed_refund_lsig = smc_lsig_refund(
@@ -111,8 +110,8 @@ async def setup_channel(websocket) -> setupProposal:
     refund_lsig_signature = proposed_refund_lsig.lsig.msig.subsigs[1].signature
 
     # Recipient accepts this channel.
-    async with OC_LOCK:
-        OPEN_CHANNELS.add(proposed_msig.address())
+    OPEN_CHANNELS.add(proposed_msig.address())
+
     logging.info("Channel accepted.")
     await websocket.send(
         setupResponse(
