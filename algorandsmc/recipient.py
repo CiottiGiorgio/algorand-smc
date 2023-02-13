@@ -43,7 +43,6 @@ MIN_ACCEPTED_LIFETIME = 2_000
 
 
 OPEN_CHANNELS = set()
-OC_LOCK = Lock()
 
 
 async def setup_channel(websocket) -> setupProposal:
