@@ -2,7 +2,6 @@
 File that implements all things related to the recipient side of an SMC.
 """
 import logging
-from asyncio import Lock
 
 from algosdk.account import address_from_private_key
 from algosdk.encoding import is_valid_address
