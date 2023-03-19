@@ -50,8 +50,12 @@ MIN_ACCEPTED_LIFETIME = 2_000
 # In such cases, a distracted recipient could accept payment lsigs that could be refunded before they are settled.
 #
 # For these two reasons (honesty and safety), we choose to take the conservative approach of never re-opening
-#  an old channel. Even though it is not strictly needed for safety.
-OPEN_CHANNELS = set()
+#  a known channel. Even though it is not strictly needed for safety.
+KNOWN_CHANNELS = set()
+
+# Margin note: It is easy to decide if we know a channel because exactly all the arguments that uniquely determine
+#  an SMC, are also embedded in the address of the shared msig (more details in the docstring of smc_msig).
+#  It is therefore sufficient to remember all addresses of the msigs to check if we know a channel.
 
 
 async def setup_channel(websocket) -> setupProposal:
@@ -95,8 +99,11 @@ async def setup_channel(websocket) -> setupProposal:
         setup_proposal.maxRefundBlock,
     )
     logging.info("proposed_msig.address() = %s", proposed_msig.address())
-    if proposed_msig.address() in OPEN_CHANNELS:
-        raise SMCBadSetup("This channel is already open.")
+    if proposed_msig.address() in KNOWN_CHANNELS:
+        raise SMCBadSetup("This channel is known.")
+
+    # Recipient accepts this channel.
+    KNOWN_CHANNELS.add(proposed_msig.address())
 
     # Compiling lsig template on the recipient side.
     proposed_refund_lsig = smc_lsig_refund(
@@ -105,7 +112,7 @@ async def setup_channel(websocket) -> setupProposal:
         setup_proposal.maxRefundBlock,
     )
     # Signing the lsig with the msig only on the recipient side.
-    # Crucially, the lsig MUST not be signed using the recipient secret key directly.
+    # Crucially, the lsig MUST NOT be signed using the recipient secret key directly.
     # That would allow the sender to close out the recipient balance in the future.
     # TODO: Create a test that validates that the lsig CANNOT be used on the recipient account in the future.
     #  Also, create a test that validates that the lsig CAN be used on the msig account in the future.
@@ -116,9 +123,6 @@ async def setup_channel(websocket) -> setupProposal:
     #  the lsig was not signed by the msig.
     proposed_refund_lsig.sign_multisig(proposed_msig, RECIPIENT_PRIVATE_KEY)
     refund_lsig_signature = proposed_refund_lsig.lsig.msig.subsigs[1].signature
-
-    # Recipient accepts this channel.
-    OPEN_CHANNELS.add(proposed_msig.address())
 
     logging.info("Channel accepted.")
     await websocket.send(

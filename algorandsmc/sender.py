@@ -32,6 +32,20 @@ SENDER_PRIVATE_KEY_MNEMONIC = (
 SENDER_PRIVATE_KEY = to_private_key(SENDER_PRIVATE_KEY_MNEMONIC)
 SENDER_ADDR = address_from_private_key(SENDER_PRIVATE_KEY)
 
+# Sender signs payment lsigs with closeout to itself. This way, it's impossible to replay a settlement multiple
+#  times because the shared msig will not hold any funds.
+# However, sender should never fund a channel that was already settled.
+# If the channel is re-financed after a settlement, payments could be replayed.
+# It is always safe to re-finance a channel before the first settlement also because of the closeout.
+# As a proxy for remembering past signed payment lsigs, we will use all known channels.
+# It could indeed be the case that for a specific channel, no payment was signed, and therefore it is safe to re-open.
+# In this implementation, we will be conservative and just never re-open a known channel.
+KNOWN_CHANNELS = set()
+
+# Margin note: It is easy to decide if we know a channel because exactly all the arguments that uniquely determine
+#  an SMC, are also embedded in the address of the shared msig (more details in the docstring of smc_msig).
+#  It is therefore sufficient to remember all addresses of the msigs to check if we know a channel.
+
 
 async def setup_channel(websocket, setup_proposal: setupProposal) -> setupResponse:
     """
@@ -41,8 +55,6 @@ async def setup_channel(websocket, setup_proposal: setupProposal) -> setupRespon
     :param setup_proposal: Channel arguments to be sent as a proposal
     :return: Recipient's side of arguments for this channel
     """
-    get_sandbox_algod()
-
     await websocket.send(
         SMCMethod(method=SMCMethod.MethodEnum.SETUP_CHANNEL).SerializeToString()
     )
@@ -56,21 +68,26 @@ async def setup_channel(websocket, setup_proposal: setupProposal) -> setupRespon
     logging.info("setup_response = %s", setup_response)
 
     # Compiling msig template on the sender side.
-    accepted_msig = smc_msig(
+    proposed_msig = smc_msig(
         SENDER_ADDR,
         setup_response.recipient,
         setup_proposal.nonce,
         setup_proposal.minRefundBlock,
         setup_proposal.maxRefundBlock,
     )
-    logging.info("accepted_msig.address() = %s", accepted_msig.address())
+    if proposed_msig.address() in KNOWN_CHANNELS:
+        raise SMCBadSetup("This channel is known.")
+
+    KNOWN_CHANNELS.add(proposed_msig.address())
+    logging.info("accepted_msig.address() = %s", proposed_msig.address())
+
     # Compiling lsig template on the sender side.
     accepted_refund_lsig = smc_lsig_refund(
         SENDER_ADDR, setup_proposal.minRefundBlock, setup_proposal.maxRefundBlock
     )
 
     # Merging signatures for the lsig
-    accepted_refund_lsig.sign_multisig(accepted_msig, SENDER_PRIVATE_KEY)
+    accepted_refund_lsig.sign_multisig(proposed_msig, SENDER_PRIVATE_KEY)
     accepted_refund_lsig.lsig.msig.subsigs[1].signature = setup_response.lsigSignature
     if not accepted_refund_lsig.verify():
         # Least incomprehensible sentence in this code.
