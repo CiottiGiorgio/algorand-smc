@@ -33,14 +33,24 @@ RECIPIENT_ADDR = address_from_private_key(RECIPIENT_PRIVATE_KEY)
 
 # This is the minimum lifetime of a channel that the recipient is willing to accept.
 # The channel should last at least 2_000 blocks starting from the current one.
+# This should give recipient plenty of time to prepare the settlement before letting the refund window open.
 MIN_ACCEPTED_LIFETIME = 2_000
-# Recipient has no opinion on how long should the refund windows be.
-# Recipient should remember the channel that he has signed lsigs for and avoid accepting them anyway.
-# Recipient cannot be tricked into opening a new channel for which there is an already-signed lsig that happens
-#  earlier than the one proposed because the setup parameters change the C account. Therefore, they also change
-#  the whole msig account and so it is safe to open a new channel so long as _any_ parameter changes.
+# Recipient has no opinion on how long should the refund window be.
 
 
+# There are no threats for the recipient side of a replay attack.
+# The only lsig that is signed first on the recipient side is refund lsig.
+# As long as recipient checks the balance of the shared msig, it can safely accept new payments for an old channel.
+# This would open replay attacks on the sender's side if they don't ensure that they never re-use a channel.
+#   This implementation is that of an honest recipient, and therefore we don't exemplify such attacks.
+# Recipient must also always enforce the minimum lifetime of the channel because that prevents an attacker
+#  to propose a channel for which either:
+#  - There isn't enough time to execute the settlement
+#  - Refund window is already open
+# In such cases, a distracted recipient could accept payment lsigs that could be refunded before they are settled.
+#
+# For these two reasons (honesty and safety), we choose to take the conservative approach of never re-opening
+#  an old channel. Even though it is not strictly needed for safety.
 OPEN_CHANNELS = set()
 
 

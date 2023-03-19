@@ -29,14 +29,21 @@ def smc_msig(
     # Sandbox node
     node_algod = get_sandbox_algod()
 
-    # fmt: off
     # Derive C's address.
-    # This code always fails because it terminates with more than one element on the stack.
+    # We could technically just parameterize this contract with nonce alone. However, both participants in the channel
+    #  would then have to associate each msig address with the channel arguments.
+    # If we parameterize C with all channel arguments, its address will always be deterministically
+    #  associated with the channel arguments.
+    # Starting from channel arguments, deriving the address of the shared msig is basically taking
+    #  the hash of the tuple (the template is constant).
+    # This basically means that we can receive proposed channel arguments,
+    #  derive msig address and evaluate if we already opened the channel in the past.
+    # The TEAL code for C contract account always fails because it terminates with more than one element on the stack.
+    # fmt: off
     teal = "\n".join([
         f"int {nonce}",
         f"int {min_block_refund}",
-        f"int {max_block_refund}",
-        "int 0"
+        f"int {max_block_refund}"
     ])
     # fmt: on
     contract_addr = node_algod.compile(teal)["hash"]
