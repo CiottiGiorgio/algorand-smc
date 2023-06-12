@@ -18,7 +18,7 @@ async def honest_sender() -> None:
     """Demo of an honest sender"""
     setup_proposal = setupProposal(
         # sender=SENDER_ADDR, nonce=1024, minRefundBlock=10_000, maxRefundBlock=10_500
-        sender=SENDER_ADDR, nonce=1024, minRefundBlock=1400, maxRefundBlock=1450
+        sender=SENDER_ADDR, nonce=1024, minRefundBlock=2150, maxRefundBlock=2200
     )
 
     # pylint: disable-next=no-member

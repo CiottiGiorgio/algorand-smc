@@ -6,7 +6,7 @@ from asyncio import sleep
 
 from algosdk.account import address_from_private_key
 from algosdk.encoding import is_valid_address
-from algosdk.error import IndexerHTTPError
+from algosdk.error import IndexerHTTPError, AlgodHTTPError
 from algosdk.mnemonic import to_private_key
 from algosdk.transaction import LogicSigTransaction, PaymentTxn, wait_for_confirmation
 
@@ -258,7 +258,12 @@ async def refund_channel(
 
     refund_txn_signed = LogicSigTransaction(refund_txn, derived_refund_lsig)
 
-    txid = node_algod.send_transaction(refund_txn_signed)
+    try:
+        txid = node_algod.send_transaction(refund_txn_signed)
+    except AlgodHTTPError as err:
+        logging.error("Could not execute refund condition. This is probably because we had old indexer data and we"
+                      "thought that recipient didn't settle.")
+        raise err
     wait_for_confirmation(node_algod, txid)
 
     logging.info("Refund executed. TxID = %s", txid)
