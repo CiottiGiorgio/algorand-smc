@@ -17,13 +17,14 @@ from algorandsmc.smc_pb2 import setupProposal
 async def honest_sender() -> None:
     """Demo of an honest sender"""
     setup_proposal = setupProposal(
-        sender=SENDER_ADDR, nonce=1024, minRefundBlock=10_000, maxRefundBlock=10_500
+        # sender=SENDER_ADDR, nonce=1024, minRefundBlock=10_000, maxRefundBlock=10_500
+        sender=SENDER_ADDR, nonce=1024, minRefundBlock=1400, maxRefundBlock=1450
     )
 
     # pylint: disable-next=no-member
     async with websockets.connect("ws://localhost:55000") as websocket:
         setup_response = await setup_channel(websocket, setup_proposal)
-        fund(setup_proposal, setup_response, 10_000_000)
+        await fund(setup_proposal, setup_response, 10_000_000)
         await pay(websocket, setup_proposal, setup_response, 1_000_000)
         await sleep(1.0)
         await pay(websocket, setup_proposal, setup_response, 2_000_000)

@@ -26,7 +26,7 @@ async def undercollateralized_dishonest_sender() -> None:
     # pylint: disable-next=no-member
     async with websockets.connect("ws://localhost:55000") as websocket:
         setup_response = await setup_channel(websocket, setup_proposal)
-        fund(setup_proposal, setup_response, 10_000_000)
+        await fund(setup_proposal, setup_response, 10_000_000)
         await pay(websocket, setup_proposal, setup_response, 5_000_000)
         await sleep(1.0)
         await pay(websocket, setup_proposal, setup_response, 11_000_000)

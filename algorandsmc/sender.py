@@ -98,7 +98,7 @@ async def setup_channel(websocket, setup_proposal: setupProposal) -> setupRespon
     return setup_response
 
 
-def fund(
+async def fund(
     setup_proposal: setupProposal, setup_response: setupResponse, amount: int
 ) -> None:
     """
@@ -110,6 +110,7 @@ def fund(
     :param amount: microalgos to send
     """
     node_algod = get_sandbox_algod()
+    node_indexer = get_sandbox_indexer()
 
     derived_msig = smc_msig(
         SENDER_ADDR,
@@ -126,6 +127,24 @@ def fund(
         )
     )
     wait_for_confirmation(node_algod, txid)
+
+    # BUGFIX: The information about the msig balance is not updated immediately after
+    #  the transaction is confirmed when using the sandbox. This is some indexer shenanigan.
+    #  Query the state of the msig until it shows a positive balance and only then send L2 payments.
+    # FIXME: Ideally this polling would have at the very least a timeout.
+    while True:
+        try:
+            # Assuming that any positive balance will not throw an error.
+            # This still doesn't ensure that the balance is exactly what was expected by the fund transaction but
+            #  close enough.
+            node_indexer.account_info(derived_msig.address())["account"][
+                "amount-without-pending-rewards"
+            ]
+        except IndexerHTTPError:
+            pass
+        else:
+            break
+        await sleep(1.0)
 
     logging.info("Funding TxID = %s", txid)
 
@@ -196,6 +215,10 @@ async def refund_channel(
         # Assuming that the sender would only call this function if they know they funded msig,
         #  the only reason this account could have 0 ALGO balance, is if the recipient
         #  settled the channel.
+        # FIXME: There has been many instances where the recipient settled the channel but the honest sender didn't
+        #  follow this path. It tried to execute the refund and (correctly) failed for overspending.
+        #  This is because in sandbox mode transaction confirmation is not enough to guarantee that the indexer knows
+        #  about the new balances.
         try:
             msig_balance = node_indexer.account_info(derived_msig.address())["account"][
                 "amount-without-pending-rewards"
